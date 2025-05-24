@@ -1,0 +1,54 @@
+#include <MFRC522.h>
+#include <SPI.h>
+#include <SHA256.h>
+#include <SerialCommunicator.h>
+#include <Leds.h>
+#include <Api.h>
+#include <Protocol.h>
+#include <Controller.h>
+
+// Encrypt
+SHA256 sha256;
+
+// Communication
+SerialCommunicator* com = SerialCommunicator::getInstance();
+
+// LEDS
+#define RED 29
+#define YELLOW 31
+#define GREEN 33
+Leds leds = Leds(RED, YELLOW, GREEN);
+// RFID
+#define RST_PIN 5
+#define SS_PIN 53
+MFRC522 mfrc522(SS_PIN, RST_PIN);
+
+// Button
+#define BUTTON 23
+
+Controller* controller = Controller::getInstance(BUTTON, mfrc522, leds);
+Api api = Api(); // Alway after controller instance
+// Variables
+bool available = false;
+
+
+void setup() {
+  leds.checkLeds();
+  pinMode(BUTTON, INPUT_PULLUP);
+  leds.setRed();
+  controller->refreshOutputs();
+  com->begin(9600);
+  SPI.begin();
+  mfrc522.PCD_Init();
+}
+
+void loop() {
+  if (com->messageAvailable()) {
+    ProtocolMessage* message = com->receiveMessage();
+    api.findRoute(*message);
+  }
+  
+  controller->mainLoop();
+
+  delay(250);
+}

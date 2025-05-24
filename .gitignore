@@ -1,0 +1,15 @@
+### Example user template template
+### Example user template
+
+# IntelliJ project files
+.idea
+*.iml
+out
+gen
+Driver/target
+
+/Desktop/BankSystemDesktop/BankSystemDesktop/bin/
+/Desktop/BankSystemDesktop/BankSystemDesktop/obj/
+/Backend/BankSystemBackend/BankSystemBackend/obj/
+/Backend/BankSystemBackend/BankSystemBackend/bin/
+/Backend/BankSystemBackend/BankSystemBackend/wwwroot/lib/
