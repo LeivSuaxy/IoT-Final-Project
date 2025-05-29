@@ -2,8 +2,10 @@ mod serial;
 mod server;
 mod commands;
 mod protocol;
+mod config;
+mod security;
 
-use serial::{list_arduino_ports, process_serial_data_with_broadcast};
+use serial::{list_arduino_ports, process_serial_data_with_broadcast, initialize_serial_port};
 use server::tcp::run_tcp_server;
 use commands::handler::handle_commands;
 use serialport::{SerialPort, SerialPortInfo};
@@ -14,6 +16,8 @@ use tokio::sync::{broadcast, mpsc};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+    config::load_config();
+
     // Configurar canales
     let (rfid_tx, _) = broadcast::channel::<String>(16);
     let (cmd_tx, cmd_rx) = mpsc::channel::<String>(16);
@@ -27,24 +31,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     
     // Ejecutar servidor TCP
     run_tcp_server(rfid_tx, cmd_tx).await
-}
-
-async fn initialize_serial_port() -> Result<Box<dyn SerialPort>, Box<dyn Error + Send + Sync>> {
-    let arduino_ports = list_arduino_ports().await?;
-    if arduino_ports.is_empty() {
-        return Err("No se detectó ningún puerto Arduino".into());
-    }
-
-    let port_name = arduino_ports[0].port_name.clone();
-    let port = tokio::task::spawn_blocking(move || {
-        serialport::new(port_name, 115200)
-            .timeout(Duration::from_millis(100))
-            .open()
-    })
-    .await??;
-
-    println!("Abierto puerto {} a 9600 bps.", port.name().unwrap_or_default());
-    Ok(port)
 }
 
 async fn start_tasks(
@@ -69,4 +55,16 @@ async fn start_tasks(
     tokio::spawn(async move {
         handle_commands(cmd_rx, port_cmd).await;
     });
+
+    // Esperar 10 segundos antes de iniciar el handshake
+        println!("Esperando 10 segundos antes de iniciar el handshake...");
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        
+        match protocol::perform_handshake(port_writer.clone()).await {
+            Ok(_) => println!("Handshake completed successfully"),
+            Err(e) => {
+                eprintln!("Handshake failed: {}", e);
+                //return Err(e);
+            }
+        }
 }

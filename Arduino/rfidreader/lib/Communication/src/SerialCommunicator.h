@@ -22,6 +22,7 @@ class SerialCommunicator {
         void sendMISS(const String& message);
         void sendCMD(const String& message);
         void sendINFO(const String& message);
+        void sendAUTH(const String& message);
         ProtocolMessage* receiveMessage();
         bool messageAvailable();
 };

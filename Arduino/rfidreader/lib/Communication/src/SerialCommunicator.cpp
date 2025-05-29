@@ -68,3 +68,7 @@ void SerialCommunicator::sendINFO(const String& message) {
     Serial.println(this->protocolMessage.toStringAnonymous(MessageType::INFO, message));
 }
 
+void SerialCommunicator::sendAUTH(const String& message) {
+    Serial.println(this->protocolMessage.toStringAnonymous(MessageType::AUTH, message));
+}
+
