@@ -13,3 +13,11 @@ Driver/target
 /Backend/BankSystemBackend/BankSystemBackend/obj/
 /Backend/BankSystemBackend/BankSystemBackend/bin/
 /Backend/BankSystemBackend/BankSystemBackend/wwwroot/lib/
+
+# Visual Studio Code files
+.vscode
+
+# Python cache files
+__pycache__
+# Python virtual environment
+venv
