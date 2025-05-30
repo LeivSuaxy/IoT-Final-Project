@@ -10,6 +10,13 @@
 // Encrypt
 SHA256 sha256;
 
+#ifndef HANDSHAKE_KEY
+#define HANDSHAKE_KEY "default_handshake_key"
+#endif
+
+#ifndef SECRET_KEY
+#define SECRET "default_secret_key"
+#endif
 // Communication
 SerialCommunicator* com = SerialCommunicator::getInstance();
 
@@ -51,4 +58,4 @@ void loop() {
   controller->mainLoop();
 
   delay(250);
-}
+} 

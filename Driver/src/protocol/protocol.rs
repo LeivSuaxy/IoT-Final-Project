@@ -2,6 +2,7 @@ use std::fmt;
 use std::{format, write};
 #[derive(Debug, Clone, PartialEq)]
 pub enum MessageType{
+    AUTH, // Authentication message to verify identity
     INFO, // Info message to transfer pure data
     ERR, // Error message to warn
     ACK, // Acknowledgment message to confirm
@@ -13,6 +14,7 @@ pub enum MessageType{
 impl fmt::Display for MessageType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            MessageType::AUTH => write!(f, "AUTH"),
             MessageType::INFO => write!(f, "INFO"),
             MessageType::ERR => write!(f, "ERR"),
             MessageType::ACK => write!(f, "ACK"),
@@ -48,6 +50,7 @@ impl ProtocolMessage {
         }
 
         let message_type = match parts[0] {
+            "AUTH" => MessageType::AUTH,
             "INFO" => MessageType::INFO,
             "ERR" => MessageType::ERR,
             "ACK" => MessageType::ACK,

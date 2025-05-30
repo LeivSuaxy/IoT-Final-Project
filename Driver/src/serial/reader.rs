@@ -30,6 +30,10 @@ pub fn process_serial_data_with_broadcast(
                             
                             let _ = tx.send(message.clone().to_string());
                             
+                            if message.message_type == MessageType::AUTH {
+                                println!("Received AUTH message: {:?}", message);
+                            }
+                            
                             
                         } else {
                             eprintln!("Received invalid protocol message: {}", line);

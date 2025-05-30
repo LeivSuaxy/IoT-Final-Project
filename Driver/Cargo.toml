@@ -6,3 +6,8 @@ edition = "2024"
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 serialport = "4"
+dotenv = "0.15"
+hmac = "0.12"
+sha2 = "0.10"
+rand = "0.8"
+hex = "0.4"
