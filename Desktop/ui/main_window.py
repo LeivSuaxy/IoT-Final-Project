@@ -160,7 +160,7 @@ class RFIDInterface(QMainWindow):
         
         self.log_text = QTextEdit()
         self.log_text.setStyleSheet("background: #232323; border: 0;")
-        self.log_text.setMaximumHeight(250)
+        self.log_text.setMaximumHeight(500)
         self.log_text.setReadOnly(True)
         self.log_text.setFont(QFont("Consolas", 9))
         
