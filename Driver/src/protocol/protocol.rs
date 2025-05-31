@@ -29,6 +29,7 @@ impl fmt::Display for MessageType {
 pub struct ProtocolMessage {
     pub message_type: MessageType,
     pub data: String,
+    pub auth: String,
 }
 
 impl ProtocolMessage {
@@ -36,6 +37,7 @@ impl ProtocolMessage {
         Self {
             message_type,
             data: data.to_string(),
+            auth: String::new(), // TODO Default empty auth, can be set later
         }
     }
 
@@ -63,6 +65,7 @@ impl ProtocolMessage {
         Some(Self {
             message_type,
             data: parts[1].to_string(),
+            auth: String::new(), // TODO Default empty auth, can be set later
         })
     }
 

@@ -20,7 +20,7 @@ pub async fn perform_handshake(
     let hash_builder = HashBuilder::new();
     
     // Generate client nonce
-    let client_nonce = generate_nonce(&hash_builder);
+    let client_nonce = generate_nonce(&hash_builder, Some(true));
 
     // Send handshake initiation
     send_handshake_request(Arc::clone(&port), &hash_builder, &client_nonce).await?;
@@ -41,8 +41,16 @@ pub async fn perform_handshake(
     Ok(())
 }
 
-fn generate_nonce(hash_builder: &HashBuilder) -> String {
-    let secret_key = config::get_config().handshake_key.clone();
+fn generate_nonce(hash_builder: &HashBuilder, handshake: Option<bool>) -> String {
+    let handshake = handshake.unwrap_or(false);
+    let secret_key: &str;
+    
+    if !handshake {
+        secret_key = &config::get_config().secret_key;
+    } else {
+        secret_key = &config::get_config().handshake_key;
+    }
+    
     println!("{}", secret_key);
     let formula_part1 = hash_builder.init * hash_builder.step;
     let formula_part2 = hash_builder.limit + hash_builder.step;
