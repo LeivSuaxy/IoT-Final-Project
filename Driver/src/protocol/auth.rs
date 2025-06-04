@@ -9,12 +9,52 @@ use serialport::SerialPort;
 use crate::config;
 use crate::protocol::{MessageType, ProtocolMessage};
 use crate::security::HashBuilder;
+use lazy_static::lazy_static;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+lazy_static! {
+    static ref SESSION: Mutex<Option<SessionState>> = Mutex::new(None);
+    static ref HANDSHAKE_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+}
+
+pub fn initialize_session(hash_builder: HashBuilder) {
+    let mut session = SESSION.lock().unwrap();
+    *session = Some(SessionState::new(hash_builder));
+}
+
+pub fn get_auth_for_message() -> String {
+    let mut session = SESSION.lock().unwrap();
+    if let Some(state) = session.as_mut() {
+        if state.needs_rehandshake() {
+            // Signal that a handshake is needed
+            HANDSHAKE_IN_PROGRESS.store(true, Ordering::SeqCst);
+            return "REHANDSHAKE".to_string();
+        }
+        state.for_sending().calculate_next_hash(true)
+    } else {
+        // No session, cannot authenticate
+        "".to_string()
+    }
+}
+
+pub fn validate_received_message(auth: &str) -> bool {
+    let mut session = SESSION.lock().unwrap();
+    if let Some(state) = session.as_mut() {
+        if auth == "REHANDSHAKE" {
+            HANDSHAKE_IN_PROGRESS.store(true, Ordering::SeqCst);
+            return true; // Accept rehandshake request
+        }
+        state.for_receiving().validate_hash(auth)
+    } else {
+        false
+    }
+}
 
 type HmacSha256 = Hmac<Sha256>;
 
 pub async fn perform_handshake(
     port: Arc<Mutex<Box<dyn SerialPort>>>,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+) -> Result<SessionState, Box<dyn Error>> {
     println!("Starting handshake with Arduino...");
     
     let hash_builder = HashBuilder::new();
@@ -23,22 +63,27 @@ pub async fn perform_handshake(
     let client_nonce = generate_nonce(&hash_builder, Some(true));
 
     // Send handshake initiation
-    send_handshake_request(Arc::clone(&port), &hash_builder, &client_nonce).await?;
+    send_handshake_request(Arc::clone(&port), &hash_builder, &client_nonce).await.expect("Loca");
 
-    // Receive server response with nonce and HMAC
-    let (server_nonce, server_hmac) = receive_handshake_response(Arc::clone(&port)).await?;
+    Ok(SessionState::new(hash_builder))
+}
 
-    // Verify server HMAC
-    /*verify_server_hmac(&client_nonce, &server_nonce, &server_hmac)?;
+fn generate_hash(key: &str,init: u32, step: u32, limit: u32) -> String {
+    let f_part1 = init * step;
+    let f_part2 = limit + step;
+    let f_part3 = step + limit - init;
 
-    // Generate and send client HMAC
-    send_client_hmac(Arc::clone(&port), &client_nonce, &server_nonce).await?;
+    format!("{}{}{}{}", key, f_part1, f_part2, f_part3)
+}
 
-    // Wait for final ACK
-    receive_handshake_ack(Arc::clone(&port)).await?;
+fn hash_key(key: &str) -> String {
+    use sha2::{Sha256, Digest};
+    let mut hasher = Sha256::new();
+    hasher.update(key.as_bytes());
+    let result = hasher.finalize();
 
-    println!("Handshake completed successfully, sequence initialized to 0");*/
-    Ok(())
+    // Convert to hex string
+    hex::encode(&result[0..16])
 }
 
 fn generate_nonce(hash_builder: &HashBuilder, handshake: Option<bool>) -> String {
@@ -51,21 +96,9 @@ fn generate_nonce(hash_builder: &HashBuilder, handshake: Option<bool>) -> String
         secret_key = &config::get_config().handshake_key;
     }
     
-    println!("{}", secret_key);
-    let formula_part1 = hash_builder.init * hash_builder.step;
-    let formula_part2 = hash_builder.limit + hash_builder.step;
-    let formula_part3 = hash_builder.step + hash_builder.limit - hash_builder.init;
-    println!("{:?}", hash_builder);
-    let combined = format!("{}{}{}{}", secret_key, formula_part1, formula_part2, formula_part3);
-    println!("{}", combined);
-    
-    use sha2::{Sha256, Digest};
-    let mut hasher = Sha256::new();
-    hasher.update(combined.as_bytes());
-    let result = hasher.finalize();
-    
-    // Truncar a 16 bytes (128 bits) - suficiente para la mayoría de aplicaciones
-    hex::encode(&result[0..16])
+    let combined = generate_hash(secret_key, hash_builder.init, hash_builder.step, hash_builder.limit);
+
+    hash_key(&combined)
 }
 
 async fn send_handshake_request(
@@ -77,7 +110,7 @@ async fn send_handshake_request(
         MessageType::AUTH,
         &format!("HDSHK_INIT|{}&{}", nonce, &hash_builder.to_string()) as &str,
     );
-    
+    println!("{:?}", command);
     println!("{}", command.to_string());
     println!("{}", command.data);
 
@@ -85,12 +118,10 @@ async fn send_handshake_request(
         let mut port_guard = port.lock().unwrap();
         port_guard.write(format!("{}\n", command.to_string()).as_bytes())
     }).await??;
-    // 7e6cbdb324ad9a24bc6ecd304378c8fd
-    // e3b0c44298fc1c149afbf4c8996fb924
     Ok(())
 }
 
-async fn receive_handshake_response(
+/*async fn receive_handshake_response(
     port: Arc<Mutex<Box<dyn SerialPort>>>,
 ) -> Result<(String, String), Box<dyn Error + Send + Sync>> {
     let timeout = Duration::from_secs(5);
@@ -210,4 +241,63 @@ async fn receive_handshake_ack(
     }
 
     Err("Handshake acknowledgment timeout".into())
+}*/
+
+// SessionState
+#[derive(Debug)]
+pub struct SessionState {
+    init: u32,
+    step: u32,
+    limit: u32,
+    is_sending: bool,
+}
+
+impl SessionState {
+    pub fn new(hash_builder: HashBuilder) -> Self {
+        Self {
+            init: hash_builder.init,
+            step: hash_builder.step,
+            limit: hash_builder.limit,
+            is_sending: false,
+        }
+    }
+
+    pub fn for_sending(&mut self) -> &mut Self {
+        self.is_sending = true;
+        self
+    }
+
+    pub fn for_receiving(&mut self) -> &mut Self {
+        self.is_sending = false;
+        self
+    }
+
+    pub fn calculate_next_hash(&mut self, increment: bool) -> String {
+        let secret_key = &config::get_config().secret_key;
+        let combined = generate_hash(secret_key, self.init, self.step, self.limit);
+        
+        println!("{}:{}:{}", self.init, self.step, self.limit);
+        if increment {
+            println!("SE INCREMENTO!");
+            self.init += self.step;
+        } 
+        
+        hash_key(&combined)
+    }
+
+    pub fn needs_rehandshake(&self) -> bool {
+        self.init > self.limit
+    }
+    
+    pub fn backtrace(&mut self) {
+        self.init -= self.step;
+    }
+
+    pub fn validate_hash(&mut self, received_hash: &str) -> bool {
+        println!("{}:{}:{}", self.init, self.step, self.limit);
+        let hash = self.calculate_next_hash(false);
+        println!("Calculated hash: {}", hash);
+        let expected_hash = self.calculate_next_hash(true);
+        expected_hash == received_hash
+    }
 }

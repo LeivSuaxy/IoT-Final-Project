@@ -2,23 +2,30 @@
 #include <Crypto.h>
 #include <SHA256.h>
 
-Security::Security(const char* secretKey) {
-    memset(key, 0, sizeof(key));
-    strncpy((char*)key, secretKey, sizeof(key) - 1);
+
+
+Security* Security::_instance = nullptr;
+
+Security::Security() {}
+
+Security* Security::getInstance() {
+    if (_instance == nullptr) {
+        _instance = new Security();
+    }
+    return _instance;
 }
 
-String Security::getSecretKey() {
-    String secret_key = HANDSHAKE_KEY;
+String Security::getSecretKey(String key) {
     int part1 = this->init * this->step;
     int part2 = this->limit + this->step;
     int part3 = this->step + this->limit - this->init;
 
-    String combinedKey = secret_key + String(part1) + String(part2) + String(part3);
+    String combinedKey = key + String(part1) + String(part2) + String(part3);
     return combinedKey;
 }
 
-String Security::generateHMAC() {
-    String combinedKey = getSecretKey();
+String Security::generateHMAC(bool handshake=false) {
+    String combinedKey = getSecretKey(handshake ? HANDSHAKE_KEY : SECRET_KEY);
 
     SHA256 sha256;
     sha256.update(combinedKey.c_str(), combinedKey.length());  // Add this line

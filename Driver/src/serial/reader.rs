@@ -3,12 +3,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use serialport::SerialPort;
 use tokio::sync::broadcast;
-use crate::protocol::{MessageType, ProtocolMessage};
+use crate::protocol::{MessageType, ProtocolMessage, SessionState};
 use crate::serial::utils::process_ack_message;
 
 pub fn process_serial_data_with_broadcast(
     port: Arc<Mutex<Box<dyn SerialPort>>>,
     tx: broadcast::Sender<String>,
+    session: Arc<Mutex<SessionState>>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut buffer = String::with_capacity(128);
     let mut read_buf = [0u8; 64];
@@ -24,17 +25,48 @@ pub fn process_serial_data_with_broadcast(
 
                     while let Some(pos) = buffer.find('\n') {
                         let line = buffer[..pos].trim();
-                        
+
                         if let Some(message) = ProtocolMessage::from_string(line) {
                             println!("Received message: {:?}", message);
                             
-                            let _ = tx.send(message.clone().to_string());
+                            if message.message_type != MessageType::AUTH && !message.auth.is_empty() {
+                                let is_valid = {
+                                    let mut session_guard = session.lock().unwrap();
+                                    session_guard.for_receiving().validate_hash(&message.auth)
+                                };
+                                
+                                if !is_valid {
+                                    eprintln!("Auth failed for message: {:?}", message);
+                                    
+                                    let _ = tx.send(ProtocolMessage::new(
+                                        MessageType::ERR,
+                                        "Authentication failed",
+                                    ).to_string());
+                                    
+                                    let needs_rehandshake = {
+                                        let session_guard = session.lock().unwrap();
+                                        session_guard.needs_rehandshake()
+                                    };
+                                    
+                                    if needs_rehandshake {
+                                        let _ = tx.send(ProtocolMessage::new(
+                                            MessageType::AUTH,
+                                            "REHANDSHAKE_NEEDED",
+                                        ).to_string());
+                                    }
+                                    
+                                    buffer.drain(..=pos);
+                                    continue;
+                                }
+                            }
                             
+                            let _ = tx.send(message.clone().to_string());
+
                             if message.message_type == MessageType::AUTH {
                                 println!("Received AUTH message: {:?}", message);
                             }
-                            
-                            
+
+
                         } else {
                             eprintln!("Received invalid protocol message: {}", line);
                             let _ = tx.send(ProtocolMessage::new(

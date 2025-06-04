@@ -7,6 +7,7 @@
 #include <SPI.h>
 #include <SHA256.h>
 #include <SerialCommunicator.h>
+#include <Security.h>
 
 class Controller {
     private:
@@ -16,6 +17,7 @@ class Controller {
         SHA256 sha256;
         MFRC522 _mfrc522;
         SerialCommunicator* _com;
+        Security* _security;
         int _buttonPin;
         bool _available = false;
         Controller(const Controller&) = delete;
