@@ -1,16 +1,14 @@
-// src/handshake.rs
-use std::error::Error;
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
-use rand::Rng;
-use hmac::{Hmac, Mac};
-use sha2::Sha256;
-use serialport::SerialPort;
 use crate::config;
 use crate::protocol::{MessageType, ProtocolMessage};
 use crate::security::HashBuilder;
+use hmac::{Hmac, Mac};
 use lazy_static::lazy_static;
+use serialport::SerialPort;
+use sha2::Sha256;
+// src/handshake.rs
+use std::error::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 lazy_static! {
     static ref SESSION: Mutex<Option<SessionState>> = Mutex::new(None);
@@ -77,7 +75,7 @@ fn generate_hash(key: &str,init: u32, step: u32, limit: u32) -> String {
 }
 
 fn hash_key(key: &str) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(key.as_bytes());
     let result = hasher.finalize();

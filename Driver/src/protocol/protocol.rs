@@ -1,7 +1,5 @@
 use std::fmt;
 use std::{format, write};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MessageType{

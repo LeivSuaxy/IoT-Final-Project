@@ -1,10 +1,9 @@
+use crate::protocol::{MessageType, ProtocolMessage, SessionState};
+use serialport::SerialPort;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use serialport::SerialPort;
 use tokio::sync::broadcast;
-use crate::protocol::{MessageType, ProtocolMessage, SessionState};
-use crate::serial::utils::process_ack_message;
 
 pub fn process_serial_data_with_broadcast(
     port: Arc<Mutex<Box<dyn SerialPort>>>,

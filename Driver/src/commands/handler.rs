@@ -1,9 +1,8 @@
-use serialport::SerialPort;
-use std::error::Error;
-use std::sync::{Arc, Mutex};
-use tokio::sync::mpsc;
 use crate::protocol::{ProtocolMessage, SessionState};
 use crate::serial::writer::write_command_to_serial;
+use serialport::SerialPort;
+use std::sync::{Arc, Mutex};
+use tokio::sync::mpsc;
 
 // En commands/handler.rs
 pub async fn handle_commands(

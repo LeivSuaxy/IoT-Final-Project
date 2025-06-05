@@ -5,16 +5,16 @@ mod security;
 mod serial;
 mod server;
 
+use crate::protocol::SessionState;
+use crate::security::HashBuilder;
 use commands::handler::handle_commands;
-use serial::{initialize_serial_port, list_arduino_ports, process_serial_data_with_broadcast};
-use serialport::{SerialPort, SerialPortInfo};
+use serial::{initialize_serial_port, process_serial_data_with_broadcast};
+use serialport::SerialPort;
 use server::tcp::run_tcp_server;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
-use crate::protocol::SessionState;
-use crate::security::HashBuilder;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
