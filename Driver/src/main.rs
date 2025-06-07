@@ -20,29 +20,33 @@ use tokio::sync::{broadcast, mpsc};
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     config::load_config();
 
-    // Configurar canales
     let (rfid_tx, _) = broadcast::channel::<String>(16);
     let (cmd_tx, cmd_rx) = mpsc::channel::<String>(16);
 
-    // Inicializar puerto serial
-    let port = initialize_serial_port().await?;
+    let port = initialize_serial_port(config::get_config().baud_rate).await?;
     let port_writer = Arc::new(Mutex::new(port));
-
-    // Iniciar tareas
+    
     start_tasks(port_writer, rfid_tx.clone(), cmd_rx).await;
 
-    // Ejecutar servidor TCP
+    // Run socket for app comunications.
     run_tcp_server(rfid_tx, cmd_tx).await
 }
 
+/// Function to perform the initial tasks of the system.
+/// Step.1: Perform the handshake with the arduino PCB.
+/// Step.2: Spawn tasks for read serial port
+/// Step.3: Spawn tasks for handle commands from Desktop System
 async fn start_tasks(
     port_writer: Arc<Mutex<Box<dyn SerialPort>>>,
     rfid_tx: broadcast::Sender<String>,
     cmd_rx: mpsc::Receiver<String>,
 ) {
-    println!("Esperando 10 segundos antes de iniciar el handshake...");
-    tokio::time::sleep(Duration::from_secs(3)).await;
-    // Perform handshake and get session state
+    let delay: u64 = 3; // Time delay to perform handshake, secure threads.
+    
+    println!("Waiting {} secs before start handshake...", delay);
+    tokio::time::sleep(Duration::from_secs(delay)).await;
+    
+    // Handshake
     let session_state = match protocol::perform_handshake(port_writer.clone()).await {
         Ok(session) => {
             println!("Handshake completed successfully");
@@ -50,7 +54,6 @@ async fn start_tasks(
         }
         Err(e) => {
             eprintln!("Handshake failed: {}", e);
-            // If handshake fails, create a default session state
             Arc::new(Mutex::new(SessionState::new(HashBuilder::new())))
         }
     };
@@ -73,6 +76,7 @@ async fn start_tasks(
     let port_cmd = Arc::clone(&port_writer);
     let session_cmd = Arc::clone(&session_state);
     tokio::spawn(async move {
-        handle_commands(cmd_rx, port_cmd, session_cmd).await;
+        handle_commands(cmd_rx, port_cmd, session_cmd)
+            .await;
     });
 }

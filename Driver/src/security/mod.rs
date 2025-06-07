@@ -12,7 +12,7 @@ impl HashBuilder {
         Self {
             init: rng.gen_range(1..=1000),
             step: rng.gen_range(1..=25),
-            limit: rng.gen_range(3000..=7000),
+            limit: rng.gen_range(4000..=9000),
         }
     }
     

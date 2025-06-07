@@ -4,7 +4,6 @@ use serialport::SerialPort;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 
-// En commands/handler.rs
 pub async fn handle_commands(
     mut cmd_rx: mpsc::Receiver<String>,
     port_writer: Arc<Mutex<Box<dyn SerialPort>>>,

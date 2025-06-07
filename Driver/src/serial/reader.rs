@@ -78,16 +78,16 @@ pub fn process_serial_data_with_broadcast(
                 }
             }
             Ok(_) => {
-                drop(port_guard); // Release lock while sleeping
+                drop(port_guard); 
                 std::thread::sleep(Duration::from_millis(10));
             }
             Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                drop(port_guard); // Release lock while sleeping
+                drop(port_guard);
                 std::thread::sleep(Duration::from_millis(10));
             }
             Err(e) => {
                 eprintln!("Warning: Error reading from serial port: {}", e);
-                drop(port_guard); // Release lock while sleeping
+                drop(port_guard);
                 std::thread::sleep(Duration::from_millis(100));
             }
         }

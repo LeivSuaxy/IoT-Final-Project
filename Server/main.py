@@ -25,7 +25,7 @@ async def identifier(rfid_id: str, db: Session = Depends(get_db)):
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Identifier with RFID {rfid_id} not found"
+            detail = { "error": f"Identifier with RFID {rfid_id} not found", "rfid": rfid_id }
         )
 
     return result
