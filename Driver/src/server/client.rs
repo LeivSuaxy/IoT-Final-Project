@@ -29,7 +29,6 @@ pub async fn handle_client(
             line.clear();
             match reader.read_line(&mut line).await {
                 Ok(0) => {
-                    // Connection closed
                     break;
                 },
                 Ok(_) => {
@@ -54,7 +53,7 @@ pub async fn handle_client(
     tokio::select! {
             _ = rfid_task => {},
             _ = cmd_task => {},
-        }
+    }
 
     println!("Client disconnected");
 }

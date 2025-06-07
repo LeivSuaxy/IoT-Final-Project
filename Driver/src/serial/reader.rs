@@ -1,10 +1,9 @@
+use crate::protocol::{MessageType, ProtocolMessage, SessionState};
+use serialport::SerialPort;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use serialport::SerialPort;
 use tokio::sync::broadcast;
-use crate::protocol::{MessageType, ProtocolMessage, SessionState};
-use crate::serial::utils::process_ack_message;
 
 pub fn process_serial_data_with_broadcast(
     port: Arc<Mutex<Box<dyn SerialPort>>>,
@@ -79,16 +78,16 @@ pub fn process_serial_data_with_broadcast(
                 }
             }
             Ok(_) => {
-                drop(port_guard); // Release lock while sleeping
+                drop(port_guard); 
                 std::thread::sleep(Duration::from_millis(10));
             }
             Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                drop(port_guard); // Release lock while sleeping
+                drop(port_guard);
                 std::thread::sleep(Duration::from_millis(10));
             }
             Err(e) => {
                 eprintln!("Warning: Error reading from serial port: {}", e);
-                drop(port_guard); // Release lock while sleeping
+                drop(port_guard);
                 std::thread::sleep(Duration::from_millis(100));
             }
         }

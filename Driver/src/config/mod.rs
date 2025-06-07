@@ -1,4 +1,3 @@
-// src/config/mod.rs
 use std::env;
 use std::sync::OnceLock;
 
@@ -6,22 +5,20 @@ use std::sync::OnceLock;
 pub struct AppConfig {
     pub handshake_key: String,
     pub secret_key: String,
-    // Otras configuraciones según necesites
+    pub baud_rate: u32,
 }
 
 static CONFIG: OnceLock<AppConfig> = OnceLock::new();
 
 pub fn load_config() {
-    // Asegúrate de cargar el archivo .env
     dotenv::dotenv().ok();
 
     let config = AppConfig {
         handshake_key: env::var("HANDSHAKE_KEY").unwrap_or_else(|_| "default_key".to_string()),
         secret_key: env::var("SECRET_KEY").unwrap_or_else(|_| "default_secret".to_string()),
-        // Otros valores de configuración
+        baud_rate: env::var("BAUD_RATE").unwrap_or_else(|_| 9600.to_string()).parse().unwrap(),
     };
-
-    // Inicializa la configuración global
+    
     CONFIG.set(config).expect("Config already initialized");
 }
 

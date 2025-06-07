@@ -1,16 +1,13 @@
-// src/handshake.rs
-use std::error::Error;
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
-use rand::Rng;
-use hmac::{Hmac, Mac};
-use sha2::Sha256;
-use serialport::SerialPort;
 use crate::config;
 use crate::protocol::{MessageType, ProtocolMessage};
 use crate::security::HashBuilder;
+use hmac::{Hmac, Mac};
 use lazy_static::lazy_static;
+use serialport::SerialPort;
+use sha2::Sha256;
+use std::error::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 lazy_static! {
     static ref SESSION: Mutex<Option<SessionState>> = Mutex::new(None);
@@ -50,25 +47,25 @@ pub fn validate_received_message(auth: &str) -> bool {
     }
 }
 
-type HmacSha256 = Hmac<Sha256>;
-
 pub async fn perform_handshake(
     port: Arc<Mutex<Box<dyn SerialPort>>>,
 ) -> Result<SessionState, Box<dyn Error>> {
     println!("Starting handshake with Arduino...");
-    
+
     let hash_builder = HashBuilder::new();
-    
+
     // Generate client nonce
     let client_nonce = generate_nonce(&hash_builder, Some(true));
 
     // Send handshake initiation
-    send_handshake_request(Arc::clone(&port), &hash_builder, &client_nonce).await.expect("Loca");
+    send_handshake_request(Arc::clone(&port), &hash_builder, &client_nonce)
+        .await
+        .expect("Cannot perform the handshake");
 
     Ok(SessionState::new(hash_builder))
 }
 
-fn generate_hash(key: &str,init: u32, step: u32, limit: u32) -> String {
+fn generate_hash(key: &str, init: u32, step: u32, limit: u32) -> String {
     let f_part1 = init * step;
     let f_part2 = limit + step;
     let f_part3 = step + limit - init;
@@ -77,26 +74,31 @@ fn generate_hash(key: &str,init: u32, step: u32, limit: u32) -> String {
 }
 
 fn hash_key(key: &str) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(key.as_bytes());
     let result = hasher.finalize();
 
-    // Convert to hex string
+    // Trunk string on 16 chars
     hex::encode(&result[0..16])
 }
 
 fn generate_nonce(hash_builder: &HashBuilder, handshake: Option<bool>) -> String {
     let handshake = handshake.unwrap_or(false);
     let secret_key: &str;
-    
+
     if !handshake {
         secret_key = &config::get_config().secret_key;
     } else {
         secret_key = &config::get_config().handshake_key;
     }
-    
-    let combined = generate_hash(secret_key, hash_builder.init, hash_builder.step, hash_builder.limit);
+
+    let combined = generate_hash(
+        secret_key,
+        hash_builder.init,
+        hash_builder.step,
+        hash_builder.limit,
+    );
 
     hash_key(&combined)
 }
@@ -117,7 +119,8 @@ async fn send_handshake_request(
     tokio::task::spawn_blocking(move || {
         let mut port_guard = port.lock().unwrap();
         port_guard.write(format!("{}\n", command.to_string()).as_bytes())
-    }).await??;
+    })
+    .await??;
     Ok(())
 }
 
@@ -130,7 +133,7 @@ async fn send_handshake_request(
 
     while start.elapsed() < timeout {
         let mut read_buf = [0u8; 64];
-        
+
         let port_clone = Arc::clone(&port);
         let bytes_read = tokio::task::spawn_blocking(move || {
             let mut port_guard = port_clone.lock().unwrap();
@@ -197,7 +200,7 @@ async fn send_client_hmac(
     let client_hmac = hex::encode(hmac_bytes);
 
     let command = format!("HANDSHAKE_AUTH:{}", client_hmac);
-    
+
     let port_clone = Arc::clone(&port);
     tokio::task::spawn_blocking(move || {
         let mut port_guard = port_clone.lock().unwrap();
@@ -275,13 +278,13 @@ impl SessionState {
     pub fn calculate_next_hash(&mut self, increment: bool) -> String {
         let secret_key = &config::get_config().secret_key;
         let combined = generate_hash(secret_key, self.init, self.step, self.limit);
-        
+
         println!("{}:{}:{}", self.init, self.step, self.limit);
         if increment {
             println!("SE INCREMENTO!");
             self.init += self.step;
-        } 
-        
+        }
+
         hash_key(&combined)
     }
 
@@ -289,10 +292,6 @@ impl SessionState {
         self.init > self.limit
     }
     
-    pub fn backtrace(&mut self) {
-        self.init -= self.step;
-    }
-
     pub fn validate_hash(&mut self, received_hash: &str) -> bool {
         println!("{}:{}:{}", self.init, self.step, self.limit);
         let hash = self.calculate_next_hash(false);
