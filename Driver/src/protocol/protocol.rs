@@ -39,20 +39,15 @@ impl ProtocolMessage {
         Self {
             message_type,
             data: data.to_string(),
-            auth, // TODO Default empty auth, can be set later
+            auth,
         }
     }
-
-    pub fn with_auth(mut self, auth: &str) -> Self {
-        self.auth = auth.to_string();
-        self
-    }
-
+    
     pub fn to_string(&self) -> String {
         if self.auth.is_empty() {
-            return format!("{}_{}", self.message_type, self.data);
+            format!("{}_{}", self.message_type, self.data)
         } else {
-            return format!("{}_{}{}{}", self.message_type, self.data, "|", self.auth);
+            format!("{}_{}{}{}", self.message_type, self.data, "|", self.auth)
         }
     }
 
@@ -88,35 +83,4 @@ impl ProtocolMessage {
             auth,
         })
     }
-
-    pub fn to_string_with_checksum(&self) -> String {
-        let base_message = self.to_string();
-        let checksum = calculate_checksum(&base_message);
-        format!("{};{}", base_message, checksum)
-    }
-
-    pub fn from_string_with_checksum(message: &str) -> Option<Self> {
-        let parts: Vec<&str> = message.splitn(2, ';').collect();
-        if parts.len() != 2 {
-            return None;
-        }
-
-        let base_message = parts[0];
-        let expected_checksum = parts[1];
-        let actual_checksum = calculate_checksum(base_message);
-
-        if expected_checksum != actual_checksum {
-            return None;
-        }
-
-        Self::from_string(base_message)
-    }
-}
-
-fn calculate_checksum(message: &str) -> String {
-    let mut sum: u16 = 0;
-    for byte in message.bytes() {
-        sum = sum.wrapping_add(byte as u16);
-    }
-    format!("{:04X}", sum)
 }

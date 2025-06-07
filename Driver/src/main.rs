@@ -57,8 +57,7 @@ async fn start_tasks(
             Arc::new(Mutex::new(SessionState::new(HashBuilder::new())))
         }
     };
-    println!("Session state: {:?}", session_state);
-
+    
     // Tarea para procesamiento RFID
     let port_rfid = Arc::clone(&port_writer);
     let session_rfid = Arc::clone(&session_state);
