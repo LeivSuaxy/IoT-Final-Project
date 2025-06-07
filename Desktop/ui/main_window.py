@@ -1,12 +1,14 @@
 from PyQt6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, 
                              QScrollArea, QFrame, QLabel, QGroupBox, QPushButton,
-                             QListWidget, QListWidgetItem, QTextEdit)
+                             QListWidget, QListWidgetItem, QTextEdit, QMenuBar,
+                             QMenu, QDialog, QInputDialog, QMessageBox)
 from PyQt6.QtCore import QTimer, Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QAction
 from datetime import datetime
 
 from core import SocketWorker, RFIDDataHandler
 from .components import PersonCard, ConnectionPanel
+from .components.register_dialog import RegisterDialog
 from .styles import GROUP_STYLE, CONNECTION_GROUP_STYLE
 from utils.constants import WINDOW_TITLE, WINDOW_SIZE, MIN_WINDOW_SIZE, MAX_HISTORY_ITEMS
 
@@ -19,13 +21,106 @@ class RFIDInterface(QMainWindow):
         self.socket_worker = None
         self.current_person_card = None
         self.data_handler = RFIDDataHandler()
+        self.api_base_url = "http://localhost:8000"
         self._init_ui()
         
     def _init_ui(self):
         """Inicializa la interfaz de usuario"""
         self._setup_window()
+        self._setup_menu_bar()
         self._setup_central_widget()
         self._setup_timer()
+    
+    def _setup_menu_bar(self):
+        """Configura la barra de menús"""
+        # Forzar que la barra de menús aparezca en la ventana, no en el sistema
+        self.menuBar().setNativeMenuBar(False)
+        
+        menubar = self.menuBar()
+        
+        # Menú Archivo
+        file_menu = menubar.addMenu("📁 Archivo")
+        
+        # Acción para registrar tarjeta
+        register_action = QAction("🆔 Registrar Nueva Tarjeta", self)
+        register_action.setShortcut("Ctrl+N")
+        register_action.triggered.connect(self._open_register_dialog)
+        file_menu.addAction(register_action)
+        
+        # Debugging: Acción de prueba
+        test_action = QAction("🧪 Prueba de Diálogo", self)
+        test_action.triggered.connect(self._test_dialog)
+        file_menu.addAction(test_action)
+        
+        file_menu.addSeparator()
+        
+        # Acción para salir
+        exit_action = QAction("❌ Salir", self)
+        exit_action.setShortcut("Ctrl+Q")
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+        
+        # Menú Herramientas
+        tools_menu = menubar.addMenu("🔧 Herramientas")
+        
+        # Acción para configurar API
+        config_action = QAction("⚙️ Configurar API", self)
+        config_action.triggered.connect(self._configure_api)
+        tools_menu.addAction(config_action)
+        
+        # Aplicar los mismos estilos que el resto de la aplicación
+        menubar.setStyleSheet("""
+            QMenuBar {
+                background-color: #262626;
+                border: none;
+                font-weight: bold;
+                padding: 4px;
+            }
+            QMenuBar::item {
+                background-color: transparent;
+                padding: 8px 12px;
+                border-radius: 6px;
+                margin: 2px;
+                color: #e5e7eb;
+            }
+            QMenuBar::item:selected {
+                background-color: #374151;
+                color: #60a5fa;
+            }
+            QMenuBar::item:pressed {
+                background-color: #2563eb;
+                color: white;
+            }
+            QMenu {
+                background-color: #262626;
+                color: #e5e7eb;
+                border: 1px solid #484848;
+                border-radius: 6px;
+                padding: 4px;
+            }
+            QMenu::item {
+                padding: 8px 16px;
+                border-radius: 4px;
+                margin: 1px;
+                background-color: transparent;
+            }
+            QMenu::item:selected {
+                background-color: #3b82f6;
+                color: white;
+            }
+            QMenu::item:disabled {
+                color: #6b7280;
+                background-color: transparent;
+            }
+            QMenu::separator {
+                height: 1px;
+                background-color: #484848;
+                margin: 4px 8px;
+            }
+            QMenu::icon {
+                padding-left: 8px;
+            }
+        """)
     
     def _setup_window(self):
         """Configura la ventana principal"""
@@ -79,9 +174,11 @@ class RFIDInterface(QMainWindow):
     
     def _create_connection_section(self):
         """Crea la sección de conexión"""
+        # Solo retornar el panel de conexión, sin el botón
         self.connection_panel = ConnectionPanel()
         self.connection_panel.setStyleSheet(CONNECTION_GROUP_STYLE)
         self.connection_panel.connection_btn.clicked.connect(self._toggle_connection)
+        
         return self.connection_panel
     
     def _create_content_layout(self):
@@ -280,3 +377,59 @@ class RFIDInterface(QMainWindow):
             self.socket_worker.close_connection()
             self.socket_worker.wait()
         event.accept()
+    
+    def _open_register_dialog(self):
+        """Abre el diálogo de registro de tarjetas"""
+        try:
+            dialog = RegisterDialog(self, self.api_base_url)
+            
+            # Ejecutar el diálogo y verificar si se aceptó
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                registered_data = dialog.get_registered_data()
+                self._log_message(
+                    f"✅ Nueva tarjeta registrada: {registered_data['rfid']} - {registered_data['name']}"
+                )
+                
+                # Opcional: Actualizar alguna lista o interfaz si es necesario
+                self._on_card_registered(registered_data)
+            else:
+                self._log_message("❌ Registro de tarjeta cancelado")
+                
+        except Exception as e:
+            self._log_message(f"❌ Error al abrir diálogo de registro: {str(e)}")
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"No se pudo abrir el diálogo de registro:\n{str(e)}"
+            )
+    
+    def _configure_api(self):
+        """Configura la URL de la API"""
+        try:
+            new_url, ok = QInputDialog.getText(
+                self,
+                "⚙️ Configurar API",
+                "Ingresa la URL base de la API:",
+                text=self.api_base_url
+            )
+            
+            if ok and new_url.strip():
+                old_url = self.api_base_url
+                self.api_base_url = new_url.strip().rstrip('/')  # Remover / final
+                self._log_message(f"🔧 URL de API actualizada: {old_url} → {self.api_base_url}")
+            else:
+                self._log_message("❌ Configuración de API cancelada")
+                
+        except Exception as e:
+            self._log_message(f"❌ Error al configurar API: {str(e)}")
+    
+    def _on_card_registered(self, card_data):
+        """Maneja el evento de tarjeta registrada"""
+        # Aquí puedes implementar lógica adicional cuando se registra una tarjeta
+        # Por ejemplo, actualizar listas locales, enviar notificaciones, etc.
+        pass
+    
+    def _test_dialog(self):
+        """Función de prueba para verificar que los menús funcionan"""
+        QMessageBox.information(self, "Prueba", "¡El menú funciona correctamente!")
+        self._log_message("🧪 Función de prueba ejecutada desde el menú")

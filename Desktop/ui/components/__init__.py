@@ -1,3 +1,5 @@
 from .person_card import PersonCard
-from .status_indicator import StatusIndicator
 from .connection_panel import ConnectionPanel
+from .register_dialog import RegisterDialog
+
+__all__ = ['PersonCard', 'ConnectionPanel', 'RegisterDialog']
