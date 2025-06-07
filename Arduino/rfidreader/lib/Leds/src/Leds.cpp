@@ -1,13 +1,15 @@
 #include "Leds.h"
 
-Leds::Leds(int red, int yellow, int green) : redPin(red), yellowPin(yellow), greenPin(green) {
+Leds::Leds(int red, int yellow, int green, int blue) : redPin(red), yellowPin(yellow), greenPin(green), bluePin(blue) {
     this->redPin = red;
     this->yellowPin = yellow;
     this->greenPin = green;
+    this->bluePin = blue;
 
     pinMode(redPin, OUTPUT);
     pinMode(yellowPin, OUTPUT);
     pinMode(greenPin, OUTPUT);
+    pinMode(bluePin, OUTPUT);
 }
 
 void Leds::setRed() {
@@ -38,4 +40,10 @@ void Leds::setAll(bool state) {
     digitalWrite(redPin, state ? HIGH : LOW);
     digitalWrite(yellowPin, state ? HIGH : LOW);
     digitalWrite(greenPin, state ? HIGH : LOW);
+    digitalWrite(bluePin, state ? HIGH : LOW);
+}
+
+void Leds::setBlue(bool state) {
+    digitalWrite(bluePin, state ? HIGH : LOW);
+    this->blueState = state;
 }

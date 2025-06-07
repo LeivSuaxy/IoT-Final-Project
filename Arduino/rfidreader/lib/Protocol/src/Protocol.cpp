@@ -55,13 +55,13 @@ static ProtocolMessage* ProtocolMessage::fromString(String message) {
         hmac = message.substring(hmacPos + 1);
     }
 
-    int underscorePos = message.indexOf('_');
+    int underscorePos = actualMessage.indexOf('_');
     if (underscorePos <= 0) {
         return nullptr;
     }
     
-    String typeStr = message.substring(0, underscorePos);
-    String dataStr = message.substring(underscorePos + 1);
+    String typeStr = actualMessage.substring(0, underscorePos); 
+    String dataStr = actualMessage.substring(underscorePos + 1);    
     
     MessageType type;
     if (typeStr == "AUTH") type = MessageType::AUTH;

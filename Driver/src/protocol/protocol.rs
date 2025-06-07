@@ -1,5 +1,8 @@
 use std::fmt;
 use std::{format, write};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum MessageType{
     AUTH, // Authentication message to verify identity
@@ -34,24 +37,43 @@ pub struct ProtocolMessage {
 
 impl ProtocolMessage {
     pub fn new(message_type: MessageType, data: &str) -> Self {
+        let auth = crate::protocol::auth::get_auth_for_message();
         Self {
             message_type,
             data: data.to_string(),
-            auth: String::new(), // TODO Default empty auth, can be set later
+            auth, // TODO Default empty auth, can be set later
         }
+    }
+
+    pub fn with_auth(mut self, auth: &str) -> Self {
+        self.auth = auth.to_string();
+        self
     }
 
     pub fn to_string(&self) -> String {
-        format!("{}_{}", self.message_type, self.data)
+        if self.auth.is_empty() {
+            return format!("{}_{}", self.message_type, self.data);
+        } else {
+            return format!("{}_{}{}{}", self.message_type, self.data, "|", self.auth);
+        }
     }
 
     pub fn from_string(message: &str) -> Option<Self> {
-        let parts: Vec<&str> = message.splitn(2, '_').collect();
-        if parts.len() != 2 {
+        // First split by pipe to separate message and auth
+        let parts: Vec<&str> = message.splitn(2, '|').collect();
+        let (base_message, auth) = if parts.len() == 2 {
+            (parts[0], parts[1].to_string())
+        } else {
+            (message, String::new())
+        };
+
+        // Then parse the message type and data
+        let msg_parts: Vec<&str> = base_message.splitn(2, '_').collect();
+        if msg_parts.len() != 2 {
             return None;
         }
 
-        let message_type = match parts[0] {
+        let message_type = match msg_parts[0] {
             "AUTH" => MessageType::AUTH,
             "INFO" => MessageType::INFO,
             "ERR" => MessageType::ERR,
@@ -64,8 +86,8 @@ impl ProtocolMessage {
 
         Some(Self {
             message_type,
-            data: parts[1].to_string(),
-            auth: String::new(), // TODO Default empty auth, can be set later
+            data: msg_parts[1].to_string(),
+            auth,
         })
     }
 
@@ -81,9 +103,9 @@ impl ProtocolMessage {
             return None;
         }
 
-        let base_message: &str = parts[0];
-        let expected_checksum: &str = parts[1];
-        let actual_checksum: String = calculate_checksum(base_message);
+        let base_message = parts[0];
+        let expected_checksum = parts[1];
+        let actual_checksum = calculate_checksum(base_message);
 
         if expected_checksum != actual_checksum {
             return None;

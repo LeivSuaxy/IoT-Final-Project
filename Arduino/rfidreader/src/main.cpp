@@ -15,7 +15,7 @@ SHA256 sha256;
 #endif
 
 #ifndef SECRET_KEY
-#define SECRET "default_secret_key"
+#define SECRET_KEY "default_secret_key"
 #endif
 // Communication
 SerialCommunicator* com = SerialCommunicator::getInstance();
@@ -24,7 +24,8 @@ SerialCommunicator* com = SerialCommunicator::getInstance();
 #define RED 29
 #define YELLOW 31
 #define GREEN 33
-Leds leds = Leds(RED, YELLOW, GREEN);
+#define BLUE 8
+Leds leds = Leds(RED, YELLOW, GREEN, BLUE);
 // RFID
 #define RST_PIN 5
 #define SS_PIN 53

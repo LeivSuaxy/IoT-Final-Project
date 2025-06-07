@@ -46,29 +46,36 @@ bool SerialCommunicator::messageAvailable() {
 
 void SerialCommunicator::sendACK(const String& message) {
     Serial.println(this->protocolMessage.toStringAnonymous(MessageType::ACK, message));
+    delay(10);
 }
 
 void SerialCommunicator::sendERR(const String& message) {
     Serial.println(this->protocolMessage.toStringAnonymous(MessageType::ERR, message));
+    delay(10);
 }
 
 void SerialCommunicator::sendOK(const String& message) {
     Serial.println(this->protocolMessage.toStringAnonymous(MessageType::OK, message));
+    delay(10);
 }
 
 void SerialCommunicator::sendMISS(const String& message) {
     Serial.println(this->protocolMessage.toStringAnonymous(MessageType::OK, message));
+    delay(10);
 }
 
 void SerialCommunicator::sendCMD(const String& message) {
     Serial.println(this->protocolMessage.toStringAnonymous(MessageType::CMD, message));
+    delay(10);
 }
 
 void SerialCommunicator::sendINFO(const String& message) {
     Serial.println(this->protocolMessage.toStringAnonymous(MessageType::INFO, message));
+    delay(10);
 }
 
 void SerialCommunicator::sendAUTH(const String& message) {
     Serial.println(this->protocolMessage.toStringAnonymous(MessageType::AUTH, message));
+    delay(10);
 }
 

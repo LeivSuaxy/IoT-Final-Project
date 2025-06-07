@@ -1,18 +1,20 @@
+mod commands;
+mod config;
+mod protocol;
+mod security;
 mod serial;
 mod server;
-mod commands;
-mod protocol;
-mod config;
-mod security;
 
-use serial::{list_arduino_ports, process_serial_data_with_broadcast, initialize_serial_port};
-use server::tcp::run_tcp_server;
 use commands::handler::handle_commands;
+use serial::{initialize_serial_port, list_arduino_ports, process_serial_data_with_broadcast};
 use serialport::{SerialPort, SerialPortInfo};
+use server::tcp::run_tcp_server;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
+use crate::protocol::SessionState;
+use crate::security::HashBuilder;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -25,10 +27,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Inicializar puerto serial
     let port = initialize_serial_port().await?;
     let port_writer = Arc::new(Mutex::new(port));
-    
+
     // Iniciar tareas
     start_tasks(port_writer, rfid_tx.clone(), cmd_rx).await;
-    
+
     // Ejecutar servidor TCP
     run_tcp_server(rfid_tx, cmd_tx).await
 }
@@ -38,11 +40,28 @@ async fn start_tasks(
     rfid_tx: broadcast::Sender<String>,
     cmd_rx: mpsc::Receiver<String>,
 ) {
+    println!("Esperando 10 segundos antes de iniciar el handshake...");
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    // Perform handshake and get session state
+    let session_state = match protocol::perform_handshake(port_writer.clone()).await {
+        Ok(session) => {
+            println!("Handshake completed successfully");
+            Arc::new(Mutex::new(session))
+        }
+        Err(e) => {
+            eprintln!("Handshake failed: {}", e);
+            // If handshake fails, create a default session state
+            Arc::new(Mutex::new(SessionState::new(HashBuilder::new())))
+        }
+    };
+    println!("Session state: {:?}", session_state);
+
     // Tarea para procesamiento RFID
     let port_rfid = Arc::clone(&port_writer);
+    let session_rfid = Arc::clone(&session_state);
     tokio::spawn(async move {
         tokio::task::spawn_blocking(move || {
-            if let Err(e) = process_serial_data_with_broadcast(port_rfid, rfid_tx) {
+            if let Err(e) = process_serial_data_with_broadcast(port_rfid, rfid_tx, session_rfid) {
                 eprintln!("Serial processing error: {}", e);
             }
         })
@@ -50,21 +69,10 @@ async fn start_tasks(
         .expect("Serial processing task failed");
     });
 
-    // Tarea para comandos
+    // Tarea para comandos con session state
     let port_cmd = Arc::clone(&port_writer);
+    let session_cmd = Arc::clone(&session_state);
     tokio::spawn(async move {
-        handle_commands(cmd_rx, port_cmd).await;
+        handle_commands(cmd_rx, port_cmd, session_cmd).await;
     });
-
-    // Esperar 10 segundos antes de iniciar el handshake
-        println!("Esperando 10 segundos antes de iniciar el handshake...");
-        tokio::time::sleep(Duration::from_secs(3)).await;
-        
-        match protocol::perform_handshake(port_writer.clone()).await {
-            Ok(_) => println!("Handshake completed successfully"),
-            Err(e) => {
-                eprintln!("Handshake failed: {}", e);
-                //return Err(e);
-            }
-        }
 }

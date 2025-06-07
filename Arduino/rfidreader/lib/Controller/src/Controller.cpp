@@ -16,6 +16,7 @@ Controller::Controller(int buttonPin, MFRC522 mfrc522, Leds leds) : _mfrc522(mfr
     this->_mfrc522 = mfrc522;
     this->_buttonPin = buttonPin;
     this->_com = SerialCommunicator::getInstance();
+    this->_security = Security::getInstance();
     this->refreshOutputs();
 }
 
@@ -67,6 +68,10 @@ Controller* Controller::getInstance(int buttonPin, MFRC522 mfrc522, Leds leds) {
 void Controller::mainLoop() {
     if (digitalRead(this->_buttonPin) == LOW) {
         this->alter();
+    }
+
+    if (!this->_leds.getBlueState() && this->_security->isLogged()) {
+        this->_leds.setBlue();
     }
 
     if (this->_available && this->_mfrc522.PICC_IsNewCardPresent() && this->_mfrc522.PICC_ReadCardSerial()) {
