@@ -26,6 +26,10 @@ SerialCommunicator* com = SerialCommunicator::getInstance();
 #define GREEN 33
 #define BLUE 8
 Leds leds = Leds(RED, YELLOW, GREEN, BLUE);
+
+// Buzzer
+#define BUZZER 9
+
 // RFID
 #define RST_PIN 5
 #define SS_PIN 53
@@ -34,7 +38,7 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);
 // Button
 #define BUTTON 23
 
-Controller* controller = Controller::getInstance(BUTTON, mfrc522, leds);
+Controller* controller = Controller::getInstance(BUTTON, BUZZER, mfrc522, leds);
 Api api = Api(); // Alway after controller instance
 // Variables
 bool available = false;
@@ -43,6 +47,7 @@ bool available = false;
 void setup() {
   leds.checkLeds();
   pinMode(BUTTON, INPUT_PULLUP);
+  pinMode(BUZZER, OUTPUT);
   leds.setRed();
   controller->refreshOutputs();
   com->begin(9600);

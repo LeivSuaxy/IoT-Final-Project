@@ -20,3 +20,7 @@ class Identifier(SQLModel, table=True):
         default=False,
         nullable=False,
     )
+    image_path: Optional[str] = Field(
+        default=None,
+        nullable=True
+    )

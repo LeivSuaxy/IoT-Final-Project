@@ -11,7 +11,7 @@
 
 class Controller {
     private:
-        Controller(int buttonPin, MFRC522 mfrc522, Leds leds); // Todo DEFINE REAL THINGS
+        Controller(int buttonPin, int buzzerPin, MFRC522 mfrc522, Leds leds); // Todo DEFINE REAL THINGS
         static Controller* _instance;
         Leds _leds;
         SHA256 sha256;
@@ -19,12 +19,13 @@ class Controller {
         SerialCommunicator* _com;
         Security* _security;
         int _buttonPin;
+        int _buzzerPin;
         bool _available = false;
         Controller(const Controller&) = delete;
         Controller& operator=(const Controller&) = delete;
         
     public:
-        static Controller* getInstance(int buttonPin, MFRC522 mfrc522, Leds leds);
+        static Controller* getInstance(int buttonPin, int buzzerPin, MFRC522 mfrc522, Leds leds);
         static Controller* getInstance();
         void mainLoop();
         void refreshOutputs();

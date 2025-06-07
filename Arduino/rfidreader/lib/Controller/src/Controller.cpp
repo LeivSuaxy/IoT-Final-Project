@@ -10,11 +10,12 @@
 
 Controller* Controller::_instance = nullptr;
 
-Controller::Controller(int buttonPin, MFRC522 mfrc522, Leds leds) : _mfrc522(mfrc522), _buttonPin(buttonPin), _leds(leds) {
+Controller::Controller(int buttonPin, int buzzerPin, MFRC522 mfrc522, Leds leds) : _mfrc522(mfrc522), _buttonPin(buttonPin), _leds(leds) {
     this->_leds = leds;
     this->_available = false;
     this->_mfrc522 = mfrc522;
     this->_buttonPin = buttonPin;
+    this->_buzzerPin = buzzerPin;
     this->_com = SerialCommunicator::getInstance();
     this->_security = Security::getInstance();
     this->refreshOutputs();
@@ -27,6 +28,7 @@ void Controller::alter() {
 
 void Controller::readCard() {
     this->_leds.setGreen();
+    tone(this->_buzzerPin, 800, 200);
 
     String uidStr;
     for (byte i = 0; i < this->_mfrc522.uid.size; i++) {
@@ -58,9 +60,9 @@ Controller* Controller::getInstance() {
     return _instance;
 }
 
-Controller* Controller::getInstance(int buttonPin, MFRC522 mfrc522, Leds leds) {
+Controller* Controller::getInstance(int buttonPin, int buzzerPin, MFRC522 mfrc522, Leds leds) {
     if (_instance == nullptr) {
-        _instance = new Controller(buttonPin, mfrc522, leds);
+        _instance = new Controller(buttonPin, buzzerPin, mfrc522, leds);
     }
     return _instance;
 }
