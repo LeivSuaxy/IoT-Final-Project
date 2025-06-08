@@ -30,6 +30,8 @@ The existing layers are currently:
 - App Desktop (Python + PyQt)
 - Server (FastAPI)
 
+![Arch](/docs/images/Arch.png)
+
 ## Firmware
 The firmware, primarily developed in C++ using the Arduino library, is responsible for managing and
 controlling the physical components involved in the system's architecture. It provides detailed support
