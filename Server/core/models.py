@@ -24,3 +24,17 @@ class Identifier(SQLModel, table=True):
         default=None,
         nullable=True
     )
+
+class User(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
+    username: str = Field(index=True, unique=True)
+    email: str = Field(index=True, unique=True)
+    hashed_password: str
+    is_active: bool = Field(default=True)
+    is_admin: bool = Field(default=False)
+
