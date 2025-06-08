@@ -50,7 +50,7 @@ pub fn validate_received_message(auth: &str) -> bool {
 pub async fn perform_handshake(
     port: Arc<Mutex<Box<dyn SerialPort>>>,
 ) -> Result<SessionState, Box<dyn Error>> {
-    println!("Starting handshake with Arduino...");
+    println!("Starting handshake with Firmware...");
 
     let hash_builder = HashBuilder::new();
 

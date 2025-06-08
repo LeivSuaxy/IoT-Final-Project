@@ -6,7 +6,7 @@
 *.iml
 out
 gen
-Driver/target
+Middleware/target
 
 /Desktop/BankSystemDesktop/BankSystemDesktop/bin/
 /Desktop/BankSystemDesktop/BankSystemDesktop/obj/
