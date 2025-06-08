@@ -9,7 +9,7 @@ pub async fn initialize_serial_port(
 ) -> Result<Box<dyn SerialPort>, Box<dyn Error + Send + Sync>> {
     let arduino_ports: Vec<SerialPortInfo> = list_arduino_ports().await?;
     if arduino_ports.is_empty() {
-        return Err("Doesn't detect any Arduino port".into());
+        return Err("Doesn't detect any Firmware port".into());
     }
 
     let port_name: String = arduino_ports[0].port_name.clone();
