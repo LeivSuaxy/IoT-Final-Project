@@ -39,7 +39,6 @@ class UserData(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
-    user: UserData
 
 class UserCreate(BaseModel):
     username: str
@@ -97,7 +96,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
 
     access_token = create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer", "user": { "name": user.username, "is_admin": user.is_admin }}
+    return {"access_token": access_token, "token_type": "bearer", "user_data": { "name": user.username, "is_admin": user.is_admin }}
 
 
 @app.post("/register", response_model=User)
