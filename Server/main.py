@@ -39,6 +39,7 @@ class UserData(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    user_data: UserData
 
 class UserCreate(BaseModel):
     username: str
