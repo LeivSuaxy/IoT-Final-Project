@@ -32,9 +32,14 @@ class IdentifierCreate(BaseModel):
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
+class UserData(BaseModel):
+    name: str
+    is_admin: bool
+
 class Token(BaseModel):
     access_token: str
     token_type: str
+    user_data: UserData
 
 class UserCreate(BaseModel):
     username: str
@@ -92,7 +97,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
 
     access_token = create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user_data": { "name": user.username, "is_admin": user.is_admin }}
 
 
 @app.post("/register", response_model=User)
