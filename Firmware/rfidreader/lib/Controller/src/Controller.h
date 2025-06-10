@@ -33,6 +33,7 @@ class Controller {
         void alter();
         void ENABLE();
         void DISABLE();
+        void soundDeny();
         bool isAvailable() { return this->_available; }
         void setAvailable(bool available) { this->_available = available; }
 };

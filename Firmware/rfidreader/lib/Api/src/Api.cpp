@@ -136,5 +136,11 @@ void Api::findCommand(ProtocolMessage& message){
         this->_com->sendACK("RECEIVED DISABLE");
         this->_controller->DISABLE();
         return;
-    }
+    } 
+    else if (command == "SOUND_DENY")
+    {
+        this->_com->sendACK("RECEIVED SOUND_DENY");
+        this->_controller->soundDeny();
+        return;
+    } 
 }
