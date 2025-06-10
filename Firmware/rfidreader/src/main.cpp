@@ -18,13 +18,13 @@ SHA256 sha256;
 #define SECRET_KEY "default_secret_key"
 #endif
 // Communication
-SerialCommunicator* com = SerialCommunicator::getInstance();
+SerialCommunicator *com = SerialCommunicator::getInstance();
 
 // LEDS
 #define RED 29
 #define YELLOW 31
 #define GREEN 33
-#define BLUE 8
+#define BLUE 27
 Leds leds = Leds(RED, YELLOW, GREEN, BLUE);
 
 // Buzzer
@@ -38,30 +38,30 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);
 // Button
 #define BUTTON 23
 
-Controller* controller = Controller::getInstance(BUTTON, BUZZER, mfrc522, leds);
+Controller *controller = Controller::getInstance(BUTTON, BUZZER, mfrc522, leds);
 Api api = Api(); // Alway after controller instance
 // Variables
 bool available = false;
 
 
 void setup() {
-  leds.checkLeds();
-  pinMode(BUTTON, INPUT_PULLUP);
-  pinMode(BUZZER, OUTPUT);
-  leds.setRed();
-  controller->refreshOutputs();
-  com->begin(9600);
-  SPI.begin();
-  mfrc522.PCD_Init();
+    leds.checkLeds();
+    pinMode(BUTTON, INPUT_PULLUP);
+    pinMode(BUZZER, OUTPUT);
+    leds.setRed();
+    controller->refreshOutputs();
+    com->begin(9600);
+    SPI.begin();
+    mfrc522.PCD_Init();
 }
 
 void loop() {
-  if (com->messageAvailable()) {
-    ProtocolMessage* message = com->receiveMessage();
-    api.findRoute(*message);
-  }
-  
-  controller->mainLoop();
+    if (com->messageAvailable()) {
+        ProtocolMessage *message = com->receiveMessage();
+        api.findRoute(*message);
+    }
 
-  delay(250);
+    controller -> mainLoop();
+
+    delay(250);
 } 
