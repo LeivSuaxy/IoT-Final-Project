@@ -100,3 +100,8 @@ void Controller::DISABLE() {
     this->refreshOutputs();
     this->_com->sendOK("DISABLE");
 }
+
+void Controller::soundDeny() {
+    tone(this->_buzzerPin, 300, 200);
+    this->_com->sendOK("SOUND");
+}
