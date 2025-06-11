@@ -165,12 +165,8 @@ class ConnectionPanel(QGroupBox):
         """Aplica estilos modernos y compactos"""
         self.setStyleSheet("""
             QGroupBox {
-                background: qlineargradient(
-                    x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #2d3748,
-                    stop: 1 #1a202c
-                );
-                border: 1px solid #4299e1;
+                background: #232323;
+                border: 1px solid #3f3f3f;
                 border-radius: 10px;
                 font-weight: 600;
                 padding-top: 18px;
