@@ -102,9 +102,11 @@ class UserInterface(BaseInterface):
 
         # Elementos de la interfaz
         main_layout.addWidget(self._create_header())
-        main_layout.addWidget(self._create_connection_section())  # Heredado de BaseInterface
         
-        # El grupo de tarjeta actual se expande para ocupar el espacio restante
+        # 🔥 USAR EL PANEL DE CONEXIÓN HEREDADO DE BaseInterface
+        main_layout.addWidget(self._create_connection_section())
+        
+        # El grupo de información actual se expande para ocupar el espacio restante
         current_info_group = self._create_current_info_group()
         main_layout.addWidget(current_info_group, 1)
     
@@ -140,44 +142,40 @@ class UserInterface(BaseInterface):
     
     def _create_current_info_group(self):
         """Crea el grupo de información actual"""
-        group = QGroupBox("👤 Tarjeta Actual")
+        group = QGroupBox("👤 Información de Tarjeta")
         group.setFont(QFont("Arial", 12, QFont.Weight.Bold))
-        group.setStyleSheet(GROUP_STYLE)
-        
-        layout = QVBoxLayout(group)
-        layout.setContentsMargins(15, 20, 15, 15)
-        
-        # Container para la tarjeta de persona
-        self.person_card_container = QFrame()
-        self.person_card_container.setMinimumHeight(200)
-        self.person_card_container.setStyleSheet("""
-            QFrame {
+        group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 1px solid #3f3f3f;
+                border-radius: 8px;
+                margin: 10px 0px;
+                padding-top: 10px;
+                background-color: #232323;
+                color: #e5e7eb;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 8px 0 8px;
+                color: #10b981;
                 background-color: #232323;
             }
         """)
         
-        container_layout = QVBoxLayout(self.person_card_container)
-        container_layout.setContentsMargins(20, 20, 20, 20)
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(15, 20, 15, 15)
         
-        # Estado de espera
-        self.waiting_label = QLabel("⏳ Esperando escaneo de tarjeta...")
-        self.waiting_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.waiting_label.setFont(QFont("Arial", 14, QFont.Weight.Normal))
-        self.waiting_label.setStyleSheet("""
-            color: #9ca3af; 
-            padding: 40px;
-            background: transparent;
-            border: none;
+        # Label de información
+        self.info_label = QLabel("⏳ Esperando tarjeta...")
+        self.info_label.setFont(QFont("Arial", 14))
+        self.info_label.setStyleSheet("""
+            color: #e5e7eb; 
+            background: #232323; 
+            padding: 40px; 
         """)
-        
-        container_layout.addWidget(self.waiting_label)
-        layout.addWidget(self.person_card_container, 1)
-        
-        # Status indicator
-        self.status_label = QLabel("🔌 Desconectado del sistema RFID")
-        self.status_label.setFont(QFont("Arial", 10))
-        self.status_label.setStyleSheet("color: #ef4444; padding: 5px;")
-        layout.addWidget(self.status_label)
+        self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.info_label)
         
         return group
     
@@ -270,54 +268,11 @@ class UserInterface(BaseInterface):
         if reply == QMessageBox.StandardButton.Yes:
             self.close()
     
-    def _create_connection_section(self):
-        """Crea la sección de conexión (sobrescribe el método de BaseInterface)"""
-        group = QGroupBox("🔌 Conexión RFID")
-        group.setFont(QFont("Arial", 12, QFont.Weight.Bold))
-        group.setStyleSheet(GROUP_STYLE)
-        
-        layout = QVBoxLayout(group)
-        layout.setContentsMargins(15, 20, 15, 15)
-        
-        # Aquí puedes personalizar los elementos de la sección de conexión
-        self.info_label = QLabel("⏳ Esperando tarjeta...")
-        self.info_label.setFont(QFont("Arial", 14))
-        self.info_label.setStyleSheet("""
-            color: #e5e7eb; 
-            background: #1f2937; 
-            padding: 40px; 
-            border-radius: 8px; 
-            border: 2px solid #374151;
-        """)
-        self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.info_label)
-        
-        return group
+    def _toggle_connection(self):
+        """Alterna el estado de conexión - heredado de BaseInterface"""
+        super()._toggle_connection()
     
-    def update_person_info(self, data: dict):
-        """Actualiza información simple"""
-        name = data.get('name', 'Desconocido')
-        auth_verified = data.get('auth_verified', False)
-        access_granted = data.get('access_granted', False)
-        
-        if auth_verified:
-            if access_granted:
-                text = f"✅ {name}\n🚪 ACCESO PERMITIDO"
-                color = "#10b981"
-            else:
-                text = f"❌ {name}\n🚪 ACCESO DENEGADO"
-                color = "#ef4444"
-        else:
-            text = f"⚠️ {name}\n🚪 NO REGISTRADO"
-            color = "#f59e0b"
-        
-        self.info_label.setText(text)
-        self.info_label.setStyleSheet(f"""
-            color: {color}; 
-            background: #1f2937; 
-            padding: 40px; 
-            border-radius: 8px; 
-            border: 2px solid #374151;
-            font-size: 16px;
-            font-weight: bold;
-        """)
+    def _add_connection_event(self, event: str):
+        """Agrega evento de conexión al log - versión simple para usuarios"""
+        print(f"[CONNECTION] {event}")
+        # Los usuarios no tienen log visible, solo print para debug

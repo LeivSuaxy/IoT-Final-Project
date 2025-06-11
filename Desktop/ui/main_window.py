@@ -77,6 +77,10 @@ class RFIDInterface(BaseInterface):
         
         self._init_ui()
         self._start_time_update()
+        
+        # 🔥 AGREGAR EVENTO INICIAL
+        current_time = datetime.now().strftime("%H:%M:%S")
+        self._add_to_events_log(f"[{current_time}] 🚀 SISTEMA INICIADO")
     
     def _init_ui(self):
         """Inicializa la interfaz completa"""

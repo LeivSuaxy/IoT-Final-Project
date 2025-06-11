@@ -71,10 +71,14 @@ class BaseInterface(QMainWindow):
                 QMessageBox.warning(self, "Error", "Host o puerto inválido")
                 return
             
+            # 🔥 AGREGAR EVENTO DE INTENTO DE CONEXIÓN
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self._add_connection_event(f"[{current_time}] 🔌 🔄 CONECTANDO A {host}:{port}...")
+            
             # Crear worker
             self.socket_worker = SocketWorker(host, port)
             
-            # 🔥 CONECTAR SOLO LAS SEÑALES QUE EXISTEN
+            # Conectar señales existentes
             if hasattr(self.socket_worker, 'data_received'):
                 self.socket_worker.data_received.connect(self._on_socket_data)
             
@@ -86,31 +90,63 @@ class BaseInterface(QMainWindow):
             self.connection_panel.set_connecting_state()
             
         except Exception as e:
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self._add_connection_event(f"[{current_time}] 🔌 ❌ ERROR DE CONEXIÓN: {str(e)}")
             QMessageBox.critical(self, "Error de Conexión", str(e))
             self.connection_panel.set_disconnected_state()
     
     def _disconnect_from_server(self):
         """Desconecta del servidor"""
         if self.socket_worker:
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self._add_connection_event(f"[{current_time}] 🔌 🔄 DESCONECTANDO...")
+            
             self.socket_worker.close_connection()
             self.socket_worker.wait(3000)
             self.socket_worker = None
             self.connection_panel.set_disconnected_state()
+            
+            # El evento final de desconexión se agregará en _on_connection_status
     
     def _on_socket_data(self, data):
         """Maneja datos del socket"""
         try:
             # El data_handler procesará automáticamente y emitirá señal
             self.data_handler.process_rfid_data(data)
+            
+            # 🔥 AGREGAR EVENTO DE DATOS RECIBIDOS (OPCIONAL)
+            current_time = datetime.now().strftime("%H:%M:%S")
+            if isinstance(data, dict) and data.get('type') == 'rfid_scan':
+                # No loguear cada dato RFID, solo errores importantes
+                pass
+            else:
+                self._add_connection_event(f"[{current_time}] 📡 Datos recibidos del servidor")
+                
         except Exception as e:
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self._add_connection_event(f"[{current_time}] ❌ ERROR PROCESANDO DATOS: {str(e)}")
             print(f"Error procesando datos: {e}")
     
     def _on_connection_status(self, connected, message):
         """Maneja cambios de estado de conexión"""
+        current_time = datetime.now().strftime("%H:%M:%S")
+        
         if connected:
             self.connection_panel.set_connected_state()
+            # 🔥 AGREGAR EVENTO DE CONEXIÓN AL LOG
+            self._add_connection_event(f"[{current_time}] 🔌 ✅ CONECTADO AL SERVIDOR")
         else:
             self.connection_panel.set_disconnected_state()
+            # 🔥 AGREGAR EVENTO DE DESCONEXIÓN AL LOG
+            self._add_connection_event(f"[{current_time}] 🔌 ❌ DESCONECTADO DEL SERVIDOR")
+    
+    def _add_connection_event(self, event: str):
+        """Agrega evento de conexión al log - implementar en clases hijas"""
+        # Llamar método específico si existe
+        if hasattr(self, '_add_to_events_log'):
+            self._add_to_events_log(event)
+        else:
+            print(f"[DEBUG] Evento de conexión: {event}")
     
     def _handle_rfid_data(self, data):
         """Maneja datos RFID procesados"""
@@ -186,13 +222,23 @@ class BaseInterface(QMainWindow):
     def _show_register_dialog(self, rfid_id: str):
         """Muestra diálogo de registro"""
         try:
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self._add_connection_event(f"[{current_time}] 📝 Abriendo diálogo de registro para tarjeta {rfid_id}")
+            
             dialog = RegisterCardDialog(rfid_id, parent=self)
             result = dialog.exec()
             
             if result == QDialog.DialogCode.Accepted:
+                current_time = datetime.now().strftime("%H:%M:%S")
+                self._add_connection_event(f"[{current_time}] ✅ TARJETA {rfid_id} REGISTRADA EXITOSAMENTE")
                 QMessageBox.information(self, "Éxito", "Tarjeta registrada exitosamente")
+            else:
+                current_time = datetime.now().strftime("%H:%M:%S")
+                self._add_connection_event(f"[{current_time}] ❌ Registro de tarjeta {rfid_id} cancelado")
             
         except Exception as e:
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self._add_connection_event(f"[{current_time}] ❌ ERROR EN REGISTRO: {str(e)}")
             QMessageBox.critical(self, "Error", f"Error en registro: {e}")
     
     def _show_contact_admin_dialog(self, rfid_id):
@@ -226,3 +272,69 @@ class BaseInterface(QMainWindow):
             self.identifier_worker.wait(1000)
         
         super().closeEvent(event)
+    
+    def _start_connection(self):
+        """Inicia la conexión del socket (método alternativo)"""
+        try:
+            # Obtener host y puerto del connection_panel
+            host, port = "localhost", 9999  # Valores por defecto
+            if hasattr(self, 'connection_panel'):
+                try:
+                    host, port = self.connection_panel.get_connection_data()
+                except:
+                    print(f"[WARNING] No se pudo obtener datos de conexión, usando defaults")
+            
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self._add_connection_event(f"[{current_time}] 🔌 🔄 INICIANDO CONEXIÓN A {host}:{port}...")
+            
+            # Limpiar conexión anterior
+            if self.socket_worker and self.socket_worker.isRunning():
+                self.socket_worker.quit()
+                self.socket_worker.wait()
+                self.socket_worker.deleteLater()
+            
+            # Crear nuevo worker
+            from core import SocketWorker
+            self.socket_worker = SocketWorker(host, port)
+            
+            # Conectar señales
+            if hasattr(self.socket_worker, 'data_received'):
+                self.socket_worker.data_received.connect(self._on_socket_data)
+            
+            if hasattr(self.socket_worker, 'connection_status'):
+                self.socket_worker.connection_status.connect(self._on_connection_status)
+            
+            # Iniciar worker
+            self.socket_worker.start()
+            
+            if hasattr(self, 'connection_panel'):
+                self.connection_panel.set_connecting_state()
+            
+        except Exception as e:
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self._add_connection_event(f"[{current_time}] 🔌 ❌ ERROR INICIANDO CONEXIÓN: {str(e)}")
+            raise
+    
+    def _stop_connection(self):
+        """Detiene la conexión del socket"""
+        try:
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self._add_connection_event(f"[{current_time}] 🔌 🔄 DETENIENDO CONEXIÓN...")
+            
+            if self.socket_worker and self.socket_worker.isRunning():
+                self.socket_worker.quit()
+                
+                if not self.socket_worker.wait(3000):
+                    self.socket_worker.terminate()
+                    self.socket_worker.wait()
+                
+                self.socket_worker.deleteLater()
+                self.socket_worker = None
+                
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self._add_connection_event(f"[{current_time}] 🔌 ✅ CONEXIÓN DETENIDA")
+                
+        except Exception as e:
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self._add_connection_event(f"[{current_time}] 🔌 ❌ ERROR DETENIENDO CONEXIÓN: {str(e)}")
+            print(f"Error deteniendo conexión: {e}")
