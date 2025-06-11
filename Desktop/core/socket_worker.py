@@ -189,6 +189,8 @@ class SocketWorker(QThread):
         # Si parece ser un hash RFID (hexadecimal largo)
         if self._is_rfid_hash(data):
             rfid_data = self._create_rfid_data(data, parsed_data)
+            # 🔥 AGREGAR FLAG PARA INDICAR QUE ARDUINO SE DESACTIVÓ
+            rfid_data['arduino_auto_disabled'] = True
             self.data_received.emit(rfid_data)
         else:
             # Información general
@@ -207,6 +209,8 @@ class SocketWorker(QThread):
         # Los mensajes OK con hash largo típicamente son escaneos RFID exitosos
         if self._is_rfid_hash(data):
             rfid_data = self._create_rfid_data(data, parsed_data)
+            # 🔥 AGREGAR FLAG PARA INDICAR QUE ARDUINO SE DESACTIVÓ
+            rfid_data['arduino_auto_disabled'] = True
             self.data_received.emit(rfid_data)
         else:
             # Confirmación general
@@ -219,14 +223,31 @@ class SocketWorker(QThread):
             self.data_received.emit(ok_data)
     
     def _handle_ack_message(self, parsed_data):
-        """Maneja mensajes ACK"""
-        ack_data = {
-            'type': 'acknowledgment',
-            'message': f"Confirmado: {parsed_data.get('data', '')}",
-            'timestamp': parsed_data.get('timestamp'),
-            'auth': parsed_data.get('auth', '')
-        }
-        self.data_received.emit(ack_data)
+        """Maneja mensajes ACK (confirmación de comandos Arduino)"""
+        data = parsed_data.get('data', '')
+        
+        # 🔥 VERIFICAR COMANDOS CORRECTOS
+        if data in ['ENABLE', 'DISABLE', 'RESET', 'STATUS', 'PING']:
+            print(f"[DEBUG] ✅ Arduino confirmó comando: {data}")
+            
+            # Emitir señal específica para comandos Arduino
+            arduino_ack_data = {
+                'type': 'arduino_command_ack',
+                'command': data,
+                'message': f"Arduino confirmó: {data}",
+                'timestamp': parsed_data.get('timestamp'),
+                'auth': parsed_data.get('auth', '')
+            }
+            self.data_received.emit(arduino_ack_data)
+        else:
+            # ACK genérico
+            ack_data = {
+                'type': 'acknowledgment',
+                'message': f"Confirmado: {data}",
+                'timestamp': parsed_data.get('timestamp'),
+                'auth': parsed_data.get('auth', '')
+            }
+            self.data_received.emit(ack_data)
     
     def _handle_miss_message(self, parsed_data):
         """Maneja mensajes MISS"""
@@ -333,6 +354,71 @@ class SocketWorker(QThread):
         else:
             # Asumir que es un comando
             return self.send_protocol_message('CMD', str(message))
+    
+    def send_command(self, command_data):
+        """Envía comando al Arduino usando el protocolo Rust"""
+        try:
+            if self.socket and self.running:
+                # 🔥 USAR EL PROTOCOLO RUST EN LUGAR DE JSON
+                
+                # Extraer comando del diccionario
+                command = command_data.get('command', '')
+                action = command_data.get('action', '')
+                
+                # Crear mensaje de comando usando el protocolo
+                # Formato: CMD_COMANDO|AUTH (si hay auth)
+                if command:
+                    data = command
+                elif action:
+                    data = action
+                else:
+                    data = str(command_data)
+                
+                # Enviar usando el protocolo establecido
+                success = self.send_protocol_message('CMD', data)
+                
+                if success:
+                    print(f"[DEBUG] ✅ Comando enviado al Arduino: CMD_{data}")
+                else:
+                    print(f"[ERROR] ❌ Falló envío de comando: CMD_{data}")
+                    
+                return success
+            else:
+                print("[WARNING] No hay conexión de socket activa")
+                return False
+        except Exception as e:
+            print(f"[ERROR] Error enviando comando: {e}")
+            return False
+    
+    def send_arduino_command(self, command):
+        """Envía comandos específicos de Arduino"""
+        try:
+            # 🔥 COMANDOS CORREGIDOS SEGÚN TU ESPECIFICACIÓN
+            valid_commands = [
+                'ENABLE',        # Activar modo de escaneo (CMD_ENABLE)
+                'DISABLE',       # Desactivar modo de escaneo (CMD_DISABLE)
+                'RESET',         # Reset del Arduino
+                'STATUS',        # Solicitar estado
+                'PING'           # Ping de conectividad
+            ]
+            
+            if command not in valid_commands:
+                print(f"[WARNING] Comando no válido: {command}")
+                return False
+            
+            # Enviar comando usando protocolo Rust
+            success = self.send_protocol_message('CMD', command)
+            
+            if success:
+                print(f"[DEBUG] ✅ Comando Arduino enviado: CMD_{command}")
+            else:
+                print(f"[ERROR] ❌ Error enviando comando Arduino: {command}")
+            
+            return success
+            
+        except Exception as e:
+            print(f"[ERROR] Error en send_arduino_command: {e}")
+            return False
     
     def close_connection(self):
         """Cierra la conexión"""

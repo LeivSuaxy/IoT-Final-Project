@@ -51,8 +51,15 @@ class BaseInterface(QMainWindow):
     
     def _create_connection_section(self):
         """Crea la sección de conexión"""
+        from .components import ConnectionPanel
+        
         self.connection_panel = ConnectionPanel()
+        
+        # Conectar botones
         self.connection_panel.connection_btn.clicked.connect(self._toggle_connection)
+        # 🔥 CONECTAR BOTÓN ARDUINO
+        self.connection_panel.arduino_btn.clicked.connect(self._toggle_arduino_state)
+        
         return self.connection_panel
     
     def _toggle_connection(self):
@@ -109,23 +116,42 @@ class BaseInterface(QMainWindow):
             # El evento final de desconexión se agregará en _on_connection_status
     
     def _on_socket_data(self, data):
-        """Maneja datos del socket"""
+        """Maneja datos del socket con detección de auto-desactivación Arduino"""
         try:
+            print(f"[DEBUG] Datos recibidos del socket: {data}")
+            
+            # 🔥 VERIFICAR SI ES ACK DE COMANDO ARDUINO
+            if data.get('type') == 'arduino_command_ack':
+                command = data.get('command', '')
+                print(f"[DEBUG] ✅ Recibido ACK de Arduino para comando: {command}")
+            
+            # 🔥 VERIFICAR SI ES CUALQUIER ESCANEO RFID
+            elif data.get('type') == 'rfid_scan':
+                print("[DEBUG] 🔄 Escaneo RFID detectado - Arduino se desactiva automáticamente")
+                self._handle_arduino_auto_disable()
+            
             # El data_handler procesará automáticamente y emitirá señal
             self.data_handler.process_rfid_data(data)
-            
-            # 🔥 AGREGAR EVENTO DE DATOS RECIBIDOS (OPCIONAL)
-            current_time = datetime.now().strftime("%H:%M:%S")
-            if isinstance(data, dict) and data.get('type') == 'rfid_scan':
-                # No loguear cada dato RFID, solo errores importantes
-                pass
-            else:
-                self._add_connection_event(f"[{current_time}] 📡 Datos recibidos del servidor")
                 
         except Exception as e:
             current_time = datetime.now().strftime("%H:%M:%S")
             self._add_connection_event(f"[{current_time}] ❌ ERROR PROCESANDO DATOS: {str(e)}")
             print(f"Error procesando datos: {e}")
+    
+    def _handle_arduino_auto_disable(self):
+        """Maneja la desactivación automática del Arduino después de un escaneo"""
+        try:
+            if hasattr(self, 'connection_panel') and self.connection_panel.is_connected():
+                # 🔥 USAR EL MÉTODO ESPECÍFICO DEL PANEL
+                was_disabled = self.connection_panel.auto_disable_arduino()
+                
+                if was_disabled:
+                    current_time = datetime.now().strftime("%H:%M:%S")
+                    self._add_connection_event(f"[{current_time}] 🔄 Arduino desactivado automáticamente tras escaneo")
+                    print("[DEBUG] ✅ Arduino auto-desactivado tras escaneo RFID")
+                
+        except Exception as e:
+            print(f"[ERROR] Error en auto-desactivación de Arduino: {e}")
     
     def _on_connection_status(self, connected, message):
         """Maneja cambios de estado de conexión"""
@@ -338,3 +364,74 @@ class BaseInterface(QMainWindow):
             current_time = datetime.now().strftime("%H:%M:%S")
             self._add_connection_event(f"[{current_time}] 🔌 ❌ ERROR DETENIENDO CONEXIÓN: {str(e)}")
             print(f"Error deteniendo conexión: {e}")
+    
+    def _toggle_arduino_state(self):
+        """Alterna el estado del Arduino (activar/desactivar modo espera)"""
+        try:
+            if not self.connection_panel.is_connected():
+                QMessageBox.warning(self, "Error", "Debe estar conectado al servidor primero")
+                return
+            
+            # 🔥 OBTENER ESTADO ACTUAL ANTES DE CAMBIAR
+            was_ready = self.connection_panel.is_arduino_ready()
+            
+            # Deshabilitar botón temporalmente
+            self.connection_panel.arduino_btn.setEnabled(False)
+            self.connection_panel.arduino_btn.setText("⏳ Enviando...")
+            
+            # Obtener comando basado en estado actual
+            command_data = self.connection_panel.get_arduino_command()
+            command = command_data.get('command', '')
+            
+            print(f"[DEBUG] Estado Arduino actual: {'Ready' if was_ready else 'Idle'}")
+            print(f"[DEBUG] Enviando comando: {command}")
+            
+            # Enviar comando
+            if self.socket_worker and self.socket_worker.running:
+                success = self.socket_worker.send_arduino_command(command)
+                
+                if success:
+                    # 🔥 CAMBIAR ESTADO BASADO EN EL COMANDO ENVIADO
+                    current_time = datetime.now().strftime("%H:%M:%S")
+                    
+                    if command == "ENABLE":
+                        # Se envió ENABLE, Arduino ahora está activo
+                        self.connection_panel.set_arduino_ready_state()
+                        self._add_connection_event(f"[{current_time}] 🔓 Arduino: Modo espera ACTIVADO (CMD_ENABLE)")
+                    elif command == "DISABLE":
+                        # Se envió DISABLE, Arduino ahora está inactivo
+                        self.connection_panel.set_arduino_idle_state()
+                        self._add_connection_event(f"[{current_time}] 🔒 Arduino: Modo espera DESACTIVADO (CMD_DISABLE)")
+                    
+                    # 🔥 ASEGURAR QUE EL BOTÓN SE REHABILITE
+                    self.connection_panel.arduino_btn.setEnabled(True)
+                    
+                    print(f"[DEBUG] ✅ Estado Arduino actualizado: {'Ready' if self.connection_panel.is_arduino_ready() else 'Idle'}")
+                    
+                else:
+                    # 🔥 RESTAURAR BOTÓN EN CASO DE ERROR
+                    self._restore_arduino_button_state(was_ready)
+                    QMessageBox.warning(self, "Error", f"Error enviando comando {command}")
+            else:
+                # 🔥 RESTAURAR BOTÓN SI NO HAY CONEXIÓN
+                self._restore_arduino_button_state(was_ready)
+                QMessageBox.warning(self, "Error", "No hay conexión activa con el servidor")
+                
+        except Exception as e:
+            # 🔥 RESTAURAR BOTÓN EN CASO DE EXCEPCIÓN
+            if hasattr(self, 'connection_panel'):
+                self._restore_arduino_button_state(getattr(self, '_arduino_was_ready', False))
+            
+            QMessageBox.critical(self, "Error", f"Error enviando comando al Arduino: {e}")
+            print(f"[ERROR] Error toggle Arduino: {e}")
+    
+    def _restore_arduino_button_state(self, was_ready):
+        """Restaura el estado del botón Arduino"""
+        try:
+            self.connection_panel.arduino_btn.setEnabled(True)
+            if was_ready:
+                self.connection_panel.set_arduino_ready_state()
+            else:
+                self.connection_panel.set_arduino_idle_state()
+        except Exception as e:
+            print(f"[ERROR] Error restaurando estado del botón: {e}")
