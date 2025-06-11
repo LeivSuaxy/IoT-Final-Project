@@ -1,6 +1,6 @@
 DARK_THEME = """
     QMainWindow {
-        background-color: #1f2937;
+        background-color: #262626;
     }
     
     QGroupBox {
@@ -92,7 +92,7 @@ DARK_THEME = """
     
     QScrollArea {
         border: none;
-        background-color: #1f2937;
+        background-color: #262626;
     }
     
     QScrollBar:vertical {

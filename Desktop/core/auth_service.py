@@ -43,21 +43,27 @@ class AuthService(QObject):
                 token_data = response.json()
                 self.access_token = token_data['access_token']
                 
-                # Intentar obtener datos del usuario
-                user_data = self._get_current_user()
-                if user_data:
+                # Usar los datos del usuario incluidos en la respuesta
+                if 'user_data' in token_data:
+                    user_info = token_data['user_data']
+                    user_data = UserData(
+                        id="",  # No está incluido en la respuesta
+                        username=user_info['name'],  # Tu backend usa 'name'
+                        email="",  # No está incluido en la respuesta
+                        is_active=True,  # Asumimos que está activo ya que puede hacer login
+                        is_admin=user_info['is_admin']
+                    )
                     self.current_user = user_data
                     self.login_success.emit(user_data)
                     return True, "Login exitoso"
                 else:
-                    # Si no podemos obtener datos del usuario, crear un usuario básico
-                    # con la información que tenemos
+                    # Fallback en caso de que no estén los datos del usuario
                     basic_user = UserData(
-                        id="",  # No tenemos el ID
+                        id="",
                         username=credentials.username,
-                        email="",  # No tenemos el email
-                        is_active=True,  # Asumimos que está activo
-                        is_admin=False  # Por defecto no es admin, se puede ajustar
+                        email="",
+                        is_active=True,
+                        is_admin=False
                     )
                     self.current_user = basic_user
                     self.login_success.emit(basic_user)

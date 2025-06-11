@@ -1,26 +1,22 @@
-from PyQt6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, 
-                             QFrame, QLabel, QGroupBox, QPushButton,
-                             QTextEdit, QMenuBar, QMessageBox)
-from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QWidget, 
+                             QFrame, QLabel, QGroupBox, QMessageBox)
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QAction
-from datetime import datetime
 
-from core import SocketWorker, RFIDDataHandler
 from core.auth_models import UserData
-from .components import PersonCard, ConnectionPanel
-from .styles import GROUP_STYLE, CONNECTION_GROUP_STYLE
-from utils.constants import WINDOW_TITLE, WINDOW_SIZE, MIN_WINDOW_SIZE
+from .components import PersonCard
+from .styles import GROUP_STYLE
+from .base_interface import BaseInterface
+from utils.constants import WINDOW_TITLE
 
 
-class UserInterface(QMainWindow):
+class UserInterface(BaseInterface):
     """Interfaz simplificada para usuarios no administradores"""
     
     def __init__(self, user_data: UserData):
-        super().__init__()
-        self.user_data = user_data
-        self.socket_worker = None
-        self.current_person_card = None
-        self.data_handler = RFIDDataHandler()
+        super().__init__(user_data)
+        self.setWindowTitle(f"🏷️ Monitor RFID - {user_data.username}")
+        self.resize(600, 500)
         self._init_ui()
         
     def _init_ui(self):
@@ -28,13 +24,13 @@ class UserInterface(QMainWindow):
         self._setup_window()
         self._setup_menu_bar()
         self._setup_central_widget()
-        self._setup_timer()
     
     def _setup_window(self):
         """Configura la ventana principal"""
         self.setWindowTitle(f"{WINDOW_TITLE} - Usuario: {self.user_data.username}")
-        self.setGeometry(100, 100, 900, 600)  # Ventana más pequeña
-        self.setMinimumSize(700, 500)
+        self.setGeometry(100, 100, 700, 500)
+        self.setMinimumSize(600, 700)
+        self.setMaximumSize(800, 700)
     
     def _setup_menu_bar(self):
         """Configura la barra de menús simplificada"""
@@ -104,49 +100,43 @@ class UserInterface(QMainWindow):
         main_layout.setSpacing(20)
         main_layout.setContentsMargins(20, 20, 20, 20)
 
+        # Elementos de la interfaz
         main_layout.addWidget(self._create_header())
-        main_layout.addWidget(self._create_connection_section())
-        main_layout.addWidget(self._create_current_info_group())
-        main_layout.addWidget(self._create_log_group())
+        main_layout.addWidget(self._create_connection_section())  # Heredado de BaseInterface
+        
+        # El grupo de tarjeta actual se expande para ocupar el espacio restante
+        current_info_group = self._create_current_info_group()
+        main_layout.addWidget(current_info_group, 1)
     
     def _create_header(self):
         """Crea el header de la aplicación"""
         header = QFrame()
-        header.setFixedHeight(80)
+        header.setFixedHeight(70)
         header.setStyleSheet("""
             QFrame {
-                background: qlineargradient(
-                    x1: 0, y1: 0, x2: 1, y2: 0,
-                    stop: 0 #059669,
-                    stop: 1 #047857
-                );
+                background: #343434;
                 border-radius: 10px;
             }
         """)
         
         layout = QHBoxLayout(header)
+        layout.setContentsMargins(20, 10, 20, 10)
         
         title = QLabel("🏷️ Monitor RFID")
-        title.setFont(QFont("Arial", 18, QFont.Weight.Bold))
-        title.setStyleSheet("color: white; padding: 10px;")
+        title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        title.setStyleSheet("color: white;")
         
-        user_info = QLabel(f"👤 {self.user_data.username} | 📧 {self.user_data.email}")
-        user_info.setFont(QFont("Arial", 11))
-        user_info.setStyleSheet("color: #d1fae5; padding: 10px;")
+        # Mostrar email solo si existe
+        email_text = f" | 📧 {self.user_data.email}" if self.user_data.email else ""
+        user_info = QLabel(f"👤 {self.user_data.username}{email_text}")
+        user_info.setFont(QFont("Arial", 10))
+        user_info.setStyleSheet("color: #d1fae5;")
         
         layout.addWidget(title)
         layout.addStretch()
         layout.addWidget(user_info)
         
         return header
-    
-    def _create_connection_section(self):
-        """Crea la sección de conexión"""
-        self.connection_panel = ConnectionPanel()
-        self.connection_panel.setStyleSheet(CONNECTION_GROUP_STYLE)
-        self.connection_panel.connection_btn.clicked.connect(self._toggle_connection)
-        
-        return self.connection_panel
     
     def _create_current_info_group(self):
         """Crea el grupo de información actual"""
@@ -155,92 +145,50 @@ class UserInterface(QMainWindow):
         group.setStyleSheet(GROUP_STYLE)
         
         layout = QVBoxLayout(group)
+        layout.setContentsMargins(15, 20, 15, 15)
         
+        # Container para la tarjeta de persona
         self.person_card_container = QFrame()
-        self.person_card_container.setMinimumHeight(250)
+        self.person_card_container.setMinimumHeight(200)
         self.person_card_container.setStyleSheet("""
             QFrame {
                 background-color: #232323;
-                border: 0
             }
         """)
         
         container_layout = QVBoxLayout(self.person_card_container)
+        container_layout.setContentsMargins(20, 20, 20, 20)
         
+        # Estado de espera
         self.waiting_label = QLabel("⏳ Esperando escaneo de tarjeta...")
         self.waiting_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.waiting_label.setFont(QFont("Arial", 14))
-        self.waiting_label.setStyleSheet("color: #9ca3af; padding: 50px;")
+        self.waiting_label.setFont(QFont("Arial", 14, QFont.Weight.Normal))
+        self.waiting_label.setStyleSheet("""
+            color: #9ca3af; 
+            padding: 40px;
+            background: transparent;
+            border: none;
+        """)
         
         container_layout.addWidget(self.waiting_label)
-        layout.addWidget(self.person_card_container)
+        layout.addWidget(self.person_card_container, 1)
+        
+        # Status indicator
+        self.status_label = QLabel("🔌 Desconectado del sistema RFID")
+        self.status_label.setFont(QFont("Arial", 10))
+        self.status_label.setStyleSheet("color: #ef4444; padding: 5px;")
+        layout.addWidget(self.status_label)
         
         return group
     
-    def _create_log_group(self):
-        """Crea el grupo de log simplificado"""
-        group = QGroupBox("📝 Actividad Reciente")
-        group.setFont(QFont("Arial", 12, QFont.Weight.Bold))
-        group.setStyleSheet(GROUP_STYLE)
-        
-        layout = QVBoxLayout(group)
-        
-        self.log_text = QTextEdit()
-        self.log_text.setStyleSheet("background: #232323; border: 0;")
-        self.log_text.setMaximumHeight(150)  # Más pequeño que la versión admin
-        self.log_text.setReadOnly(True)
-        self.log_text.setFont(QFont("Consolas", 9))
-        
-        layout.addWidget(self.log_text)
-        
-        return group
-    
-    def _setup_timer(self):
-        """Configura el timer de actualización"""
-        self.update_timer = QTimer()
-        self.update_timer.timeout.connect(self._update_display)
-    
-    def _toggle_connection(self):
-        """Alterna el estado de conexión"""
-        if self.socket_worker is None or not self.socket_worker.isRunning():
-            self._connect_to_server()
-        else:
-            self._disconnect()
-    
-    def _connect_to_server(self):
-        """Conecta al servidor"""
-        host, port = self.connection_panel.get_connection_data()
-        
-        self.socket_worker = SocketWorker(host, port)
-        self.socket_worker.data_received.connect(self._handle_rfid_data)
-        self.socket_worker.connection_status.connect(self._update_connection_status)
-        self.socket_worker.start()
-        
-        self.connection_panel.set_connecting_state()
-        self._log_message(f"🔄 Conectando a {host}:{port}...")
-    
-    def _disconnect(self):
-        """Desconecta del servidor"""
-        if self.socket_worker:
-            self.socket_worker.close_connection()
-            self.socket_worker.wait()
-    
-    def _handle_rfid_data(self, data):
-        """Maneja los datos RFID recibidos"""
-        try:
-            processed_data = self.data_handler.process_rfid_data(data)
-            
-            self._show_person_card(processed_data)
-            self._log_message(f"✅ Tarjeta: {processed_data['card_id']} - {processed_data['name']}")
-            
-        except Exception as e:
-            self._log_message(f"❌ Error: {str(e)}")
-    
+    # Implementación de métodos abstractos de BaseInterface
     def _show_person_card(self, data):
         """Muestra la tarjeta de persona"""
         # Limpiar container
         for i in reversed(range(self.person_card_container.layout().count())):
-            self.person_card_container.layout().itemAt(i).widget().setParent(None)
+            widget = self.person_card_container.layout().itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
         
         # Crear nueva tarjeta
         self.current_person_card = PersonCard(
@@ -250,37 +198,65 @@ class UserInterface(QMainWindow):
         )
         self.person_card_container.layout().addWidget(self.current_person_card)
     
-    def _update_connection_status(self, connected, message):
-        """Actualiza el estado de conexión"""
-        if connected:
-            self.connection_panel.set_connected_state()
-        else:
-            self.connection_panel.set_disconnected_state()
-            
-        self._log_message(f"🔌 {message}")
+    # Callbacks de BaseInterface
+    def _on_connecting(self, host, port):
+        """Cuando se inicia conexión"""
+        self.status_label.setText("🔄 Conectando al sistema RFID...")
+        self.status_label.setStyleSheet("color: #f59e0b; padding: 5px;")
     
-    def _log_message(self, message):
-        """Agrega mensaje al log"""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        log_entry = f"[{timestamp}] {message}"
-        self.log_text.append(log_entry)
-        
-        # Mantener solo las últimas 20 líneas
-        document = self.log_text.document()
-        if document.blockCount() > 20:
-            cursor = self.log_text.textCursor()
-            cursor.movePosition(cursor.MoveOperation.Start)
-            cursor.movePosition(cursor.MoveOperation.Down, cursor.MoveMode.KeepAnchor)
-            cursor.removeSelectedText()
-        
-        # Auto-scroll al final
-        cursor = self.log_text.textCursor()
-        cursor.movePosition(cursor.MoveOperation.End)
-        self.log_text.setTextCursor(cursor)
+    def _on_connected(self, message):
+        """Cuando se conecta exitosamente"""
+        self.status_label.setText("🟢 Conectado - Listo para escanear tarjetas")
+        self.status_label.setStyleSheet("color: #10b981; padding: 5px;")
     
-    def _update_display(self):
-        """Actualiza la interfaz periódicamente"""
-        pass
+    def _on_disconnected(self):
+        """Cuando se desconecta"""
+        self.status_label.setText("🔌 Desconectado del sistema RFID")
+        self.status_label.setStyleSheet("color: #ef4444; padding: 5px;")
+        self._clear_current_card()
+    
+    def _on_connection_lost(self, message):
+        """Cuando se pierde la conexión"""
+        self.status_label.setText("🔌 Conexión perdida")
+        self.status_label.setStyleSheet("color: #ef4444; padding: 5px;")
+        self._clear_current_card()
+    
+    def _on_raw_data_received(self, raw_message):
+        """Muestra datos crudos para debugging"""
+        print(f"[DEBUG] Mensaje crudo recibido: {raw_message}")
+        
+        # Opcional: mostrar en la interfaz para debugging
+        if hasattr(self, 'debug_mode') and self.debug_mode:
+            self.status_label.setText(f"DEBUG: {raw_message}")
+    
+    def _on_rfid_data_received(self, data):
+        """Cuando se reciben datos RFID procesados"""
+        card_id = data.get('card_id', 'Unknown')
+        name = data.get('name', 'Usuario')
+        message_type = data.get('message_type', 'OK')
+        auth_verified = data.get('auth_verified', False)
+        
+        # Mostrar información más detallada
+        auth_status = "🔒 Verificado" if auth_verified else "🔓 Sin auth"
+        status_text = f"✅ {message_type}: {card_id} - {name} | {auth_status}"
+        
+        self.status_label.setText(status_text)
+        self.status_label.setStyleSheet("color: #10b981; padding: 5px;")
+    
+    def _on_rfid_error(self, error_message):
+        """Cuando hay error en datos RFID"""
+        self.status_label.setText(f"❌ Error: {error_message}")
+        self.status_label.setStyleSheet("color: #ef4444; padding: 5px;")
+    
+    def _clear_current_card(self):
+        """Limpia la tarjeta actual y muestra mensaje de espera"""
+        for i in reversed(range(self.person_card_container.layout().count())):
+            widget = self.person_card_container.layout().itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+        
+        self.person_card_container.layout().addWidget(self.waiting_label)
+        self.current_person_card = None
     
     def _logout(self):
         """Cierra sesión del usuario"""
@@ -294,9 +270,54 @@ class UserInterface(QMainWindow):
         if reply == QMessageBox.StandardButton.Yes:
             self.close()
     
-    def closeEvent(self, event):
-        """Maneja el cierre de la aplicación"""
-        if self.socket_worker and self.socket_worker.isRunning():
-            self.socket_worker.close_connection()
-            self.socket_worker.wait()
-        event.accept()
+    def _create_connection_section(self):
+        """Crea la sección de conexión (sobrescribe el método de BaseInterface)"""
+        group = QGroupBox("🔌 Conexión RFID")
+        group.setFont(QFont("Arial", 12, QFont.Weight.Bold))
+        group.setStyleSheet(GROUP_STYLE)
+        
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(15, 20, 15, 15)
+        
+        # Aquí puedes personalizar los elementos de la sección de conexión
+        self.info_label = QLabel("⏳ Esperando tarjeta...")
+        self.info_label.setFont(QFont("Arial", 14))
+        self.info_label.setStyleSheet("""
+            color: #e5e7eb; 
+            background: #1f2937; 
+            padding: 40px; 
+            border-radius: 8px; 
+            border: 2px solid #374151;
+        """)
+        self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.info_label)
+        
+        return group
+    
+    def update_person_info(self, data: dict):
+        """Actualiza información simple"""
+        name = data.get('name', 'Desconocido')
+        auth_verified = data.get('auth_verified', False)
+        access_granted = data.get('access_granted', False)
+        
+        if auth_verified:
+            if access_granted:
+                text = f"✅ {name}\n🚪 ACCESO PERMITIDO"
+                color = "#10b981"
+            else:
+                text = f"❌ {name}\n🚪 ACCESO DENEGADO"
+                color = "#ef4444"
+        else:
+            text = f"⚠️ {name}\n🚪 NO REGISTRADO"
+            color = "#f59e0b"
+        
+        self.info_label.setText(text)
+        self.info_label.setStyleSheet(f"""
+            color: {color}; 
+            background: #1f2937; 
+            padding: 40px; 
+            border-radius: 8px; 
+            border: 2px solid #374151;
+            font-size: 16px;
+            font-weight: bold;
+        """)

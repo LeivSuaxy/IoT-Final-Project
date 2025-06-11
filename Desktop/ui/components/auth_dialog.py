@@ -5,6 +5,91 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QPixmap
 from core.auth_service import AuthService
 from core.auth_models import LoginCredentials, RegisterData, UserData
+import requests
+
+
+class LoginWorker(QThread):
+    """Worker para realizar login en segundo plano"""
+    
+    success = pyqtSignal(object)  # UserData object
+    error = pyqtSignal(str)
+    
+    def __init__(self, username, password):
+        super().__init__()
+        self.username = username
+        self.password = password
+        self.backend_url = "http://localhost:8000"  # 🔥 URL del backend
+    
+    def run(self):
+        """Ejecuta el proceso de login"""
+        try:
+            print(f"[DEBUG] === LoginWorker.run() ===")
+            print(f"[DEBUG] username: {self.username}")
+            print(f"[DEBUG] backend_url: {self.backend_url}")
+            
+            # Preparar datos para el login
+            login_data = {
+                'username': self.username,
+                'password': self.password
+            }
+            print(f"[DEBUG] login_data: {login_data}")
+            
+            # Hacer petición HTTP al backend
+            print(f"[DEBUG] Enviando petición de login...")
+            response = requests.post(
+                f"{self.backend_url}/login",
+                data=login_data,  # OAuth2PasswordRequestForm espera form data
+                timeout=10
+            )
+            
+            print(f"[DEBUG] Status code: {response.status_code}")
+            print(f"[DEBUG] Response headers: {dict(response.headers)}")
+            
+            if response.status_code == 200:
+                # Login exitoso
+                response_data = response.json()
+                print(f"[DEBUG] 🎉 Respuesta del backend: {response_data}")
+                
+                # Extraer datos
+                access_token = response_data.get('access_token', '')
+                user_data_dict = response_data.get('user_data', {})
+                
+                print(f"[DEBUG] 🔑 Token recibido: {access_token[:20]}..." if access_token else "[DEBUG] ❌ No token")
+                print(f"[DEBUG] 👤 User data: {user_data_dict}")
+                
+                # Crear UserData con token real
+                user_data = UserData(
+                    username=user_data_dict.get('name', self.username),
+                    is_admin=user_data_dict.get('is_admin', False),
+                    user_id=user_data_dict.get('id'),
+                    email=user_data_dict.get('email'),
+                    token=access_token  # 🔥 TOKEN REAL DEL BACKEND
+                )
+                
+                print(f"[DEBUG] ✅ UserData creado:")
+                print(f"[DEBUG] - username: {user_data.username}")
+                print(f"[DEBUG] - is_admin: {user_data.is_admin}")
+                print(f"[DEBUG] - token: {user_data.token[:20]}..." if user_data.token else "[DEBUG] - Sin token")
+                print(f"[DEBUG] - token completo: {user_data.token}")  # Para debugging
+                
+                self.success.emit(user_data)
+                
+            elif response.status_code == 401:
+                print(f"[DEBUG] ❌ Login fallido - credenciales incorrectas")
+                self.error.emit("Credenciales incorrectas")
+            else:
+                print(f"[DEBUG] ❌ Error inesperado: {response.status_code}")
+                print(f"[DEBUG] Response body: {response.text}")
+                self.error.emit(f"Error del servidor: {response.status_code}")
+                
+        except requests.exceptions.RequestException as e:
+            print(f"[ERROR] Error de conexión: {e}")
+            self.error.emit(f"Error de conexión al servidor: {str(e)}")
+        except Exception as e:
+            print(f"[ERROR] Error inesperado en LoginWorker: {e}")
+            import traceback
+            traceback.print_exc()
+            self.error.emit(f"Error inesperado: {str(e)}")
 
 
 class AuthDialog(QDialog):
@@ -15,16 +100,16 @@ class AuthDialog(QDialog):
     
     def __init__(self, api_base_url: str = "http://localhost:8000", parent=None):
         super().__init__(parent)
-        self.auth_service = AuthService(api_base_url)
+        # self.auth_service = AuthService(api_base_url)  # ❌ COMENTAR ESTO
         self.authenticated_user = None
         self._init_ui()
         self._apply_styles()
         
-        # Conectar señales del servicio de autenticación
-        self.auth_service.login_success.connect(self._on_login_success)
-        self.auth_service.login_error.connect(self._on_login_error)
-        self.auth_service.register_success.connect(self._on_register_success)
-        self.auth_service.register_error.connect(self._on_register_error)
+        # 🔥 COMENTAR ESTAS CONEXIONES DEL AUTH_SERVICE
+        # self.auth_service.login_success.connect(self._on_login_success)
+        # self.auth_service.login_error.connect(self._on_login_error)
+        # self.auth_service.register_success.connect(self._on_register_success)
+        # self.auth_service.register_error.connect(self._on_register_error)
     
     def _init_ui(self):
         """Inicializa la interfaz de usuario"""
@@ -288,13 +373,24 @@ class AuthDialog(QDialog):
                               "Por favor completa todos los campos")
             return
         
-        self._set_loading_state(True)
-        credentials = LoginCredentials(username=username, password=password)
-        success, message = self.auth_service.login(credentials)
+        print(f"[DEBUG] === _handle_login ===")
+        print(f"[DEBUG] username: {username}")
         
-        if not success:
-            self._set_loading_state(False)
-            QMessageBox.critical(self, "Error de Autenticación", message)
+        self._set_loading_state(True)
+        
+        # 🔥 USAR LOGINWORKER EN LUGAR DE AUTH_SERVICE
+        self.login_worker = LoginWorker(username, password)
+        self.login_worker.success.connect(self._on_login_success)
+        self.login_worker.error.connect(self._on_login_worker_error)
+        self.login_worker.start()
+        
+        print(f"[DEBUG] LoginWorker iniciado...")
+    
+    def _on_login_worker_error(self, error_message: str):
+        """Maneja errores del LoginWorker"""
+        print(f"[DEBUG] Error en LoginWorker: {error_message}")
+        self._set_loading_state(False)
+        QMessageBox.critical(self, "Error de Autenticación", error_message)
     
     def _handle_register(self):
         """Maneja el proceso de registro"""
@@ -331,11 +427,28 @@ class AuthDialog(QDialog):
         else:
             self.progress_bar.setRange(0, 100)
     
-    def _on_login_success(self, user_data: UserData):
-        """Maneja login exitoso"""
+    def _on_login_success(self, response_data):
+        """Maneja el éxito del login"""
+        print(f"[DEBUG] Login exitoso - Datos: {response_data}")
+        print(f"[DEBUG] Tipo de response_data: {type(response_data)}")
+        
+        # Ahora response_data siempre debería ser UserData
+        if isinstance(response_data, UserData):
+            print(f"[DEBUG] ✅ UserData recibido correctamente")
+            self.authenticated_user = response_data
+            
+            print(f"[DEBUG] ✅ UserData final:")
+            print(f"[DEBUG] - username: {self.authenticated_user.username}")
+            print(f"[DEBUG] - is_admin: {self.authenticated_user.is_admin}")
+            print(f"[DEBUG] - token presente: {bool(self.authenticated_user.token)}")
+            print(f"[DEBUG] - token: {self.authenticated_user.token[:20]}..." if self.authenticated_user.token else "[DEBUG] Sin token")
+            
+        else:
+            print(f"[ERROR] Tipo de datos inesperado: {type(response_data)}")
+            self.error.emit("Error interno: tipo de datos inesperado")
+            return
+        
         self._set_loading_state(False)
-        self.authenticated_user = user_data
-        self.authentication_success.emit(user_data)
         self.accept()
     
     def _on_login_error(self, error_message: str):

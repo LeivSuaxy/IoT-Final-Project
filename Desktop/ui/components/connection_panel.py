@@ -11,6 +11,7 @@ class ConnectionPanel(QGroupBox):
     def __init__(self, parent=None):
         super().__init__("🔌 Configuración de Conexión", parent)
         self.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        self._is_connected = False  # Agregar estado interno
         self._setup_ui()
         self._apply_styles()
     
@@ -133,7 +134,7 @@ class ConnectionPanel(QGroupBox):
         # Chip de estado - más ancho para texto completo
         self.status_chip = QFrame()
         self.status_chip.setMinimumHeight(32)
-        self.status_chip.setMinimumWidth(110)  # Más ancho para el texto completo
+        self.status_chip.setMinimumWidth(110)
         self.status_chip.setMaximumWidth(130)
         self.status_chip.setStyleSheet("""
             QFrame {
@@ -144,14 +145,14 @@ class ConnectionPanel(QGroupBox):
         """)
         
         chip_layout = QHBoxLayout(self.status_chip)
-        chip_layout.setContentsMargins(10, 4, 10, 4)  # Más padding horizontal
+        chip_layout.setContentsMargins(10, 4, 10, 4)
         chip_layout.setSpacing(6)
         chip_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # Texto del estado
         self.status_text = QLabel("Desconectado")
         self.status_text.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        self.status_text.setStyleSheet("color: #dfdfdf; border: none; background: transparent;")
+        self.status_text.setStyleSheet("color: #ef4444; border: none; background: transparent;")
 
         chip_layout.addWidget(self.status_text)
         
@@ -208,8 +209,11 @@ class ConnectionPanel(QGroupBox):
     
     def set_connecting_state(self):
         """Establece el estado de conectando"""
+        self._is_connected = False
         self.connection_btn.setText("⏳ Conectando...")
         self.connection_btn.setEnabled(False)
+        self.host_input.setEnabled(False)
+        self.port_input.setEnabled(False)
         
         # Chip amarillo para conectando
         self.status_chip.setStyleSheet("""
@@ -224,6 +228,7 @@ class ConnectionPanel(QGroupBox):
     
     def set_connected_state(self):
         """Establece el estado de conectado"""
+        self._is_connected = True
         self.connection_btn.setText("❌ Desconectar")
         self.connection_btn.setEnabled(True)
         self.host_input.setEnabled(False)
@@ -242,6 +247,7 @@ class ConnectionPanel(QGroupBox):
     
     def set_disconnected_state(self):
         """Establece el estado de desconectado"""
+        self._is_connected = False
         self.connection_btn.setText("🔗 Conectar")
         self.connection_btn.setEnabled(True)
         self.host_input.setEnabled(True)
@@ -257,6 +263,29 @@ class ConnectionPanel(QGroupBox):
         """)
         self.status_text.setText("Desconectado")
         self.status_text.setStyleSheet("color: #ef4444; border: none; background: transparent;")
+    
+    def set_connection_failed_state(self):
+        """Establece el estado de conexión fallida"""
+        self._is_connected = False
+        self.connection_btn.setText("🔗 Conectar")
+        self.connection_btn.setEnabled(True)
+        self.host_input.setEnabled(True)
+        self.port_input.setEnabled(True)
+        
+        # Chip rojo para error
+        self.status_chip.setStyleSheet("""
+            QFrame {
+                background: rgba(239, 68, 68, 0.3);
+                border: 1px solid #dc2626;
+                border-radius: 16px;
+            }
+        """)
+        self.status_text.setText("Error")
+        self.status_text.setStyleSheet("color: #dc2626; border: none; background: transparent;")
+    
+    def is_connected(self):
+        """Retorna si está conectado"""
+        return self._is_connected
     
     def get_connection_data(self):
         """Obtiene los datos de conexión"""
