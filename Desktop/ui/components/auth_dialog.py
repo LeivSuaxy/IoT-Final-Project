@@ -3,9 +3,9 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
                              QMessageBox, QProgressBar, QFrame)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QPixmap
-from core.auth_service import AuthService
 from core.auth_models import LoginCredentials, RegisterData, UserData
 import requests
+from core.auth_service import AuthService
 
 
 class LoginWorker(QThread):
@@ -100,8 +100,15 @@ class AuthDialog(QDialog):
     
     def __init__(self, api_base_url: str = "http://localhost:8000", parent=None):
         super().__init__(parent)
-        # self.auth_service = AuthService(api_base_url)  # ❌ COMENTAR ESTO
+        self.setWindowTitle("Autenticación")
+        self.setModal(True)
+        
+        # 🔥 INICIALIZAR EL SERVICIO DE AUTENTICACIÓN
+        self.auth_service = AuthService()
+        
+        # Datos de usuario autenticado
         self.authenticated_user = None
+        
         self._init_ui()
         self._apply_styles()
         
