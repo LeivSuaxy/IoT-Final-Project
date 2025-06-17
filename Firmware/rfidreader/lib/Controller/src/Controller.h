@@ -21,6 +21,7 @@ class Controller {
         int _buttonPin;
         int _buzzerPin;
         bool _available = false;
+        String getStateToString();
         Controller(const Controller&) = delete;
         Controller& operator=(const Controller&) = delete;
         
@@ -33,7 +34,8 @@ class Controller {
         void alter();
         void ENABLE();
         void DISABLE();
-        void soundDeny();
+        void deny();
+        void permit();
         bool isAvailable() { return this->_available; }
         void setAvailable(bool available) { this->_available = available; }
 };

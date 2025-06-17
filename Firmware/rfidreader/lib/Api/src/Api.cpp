@@ -20,12 +20,8 @@ bool Api::authenticateMessage(ProtocolMessage& message) {
     }
 
     String receivedHMAC = message.getHMAC();
-    this->_com->sendINFO("Received HMAC: " + receivedHMAC );
     String generatedHMAC = session->calculateNextHash(false);
-    this->_com->sendINFO("Generated HMAC: " + generatedHMAC);
     
-    this->_com->sendINFO((String)session->getInit() + ":" + (String)session->getStep() + ":" + (String)session->getLimit());
-
     bool isValid = session->validateReceivedMessage(receivedHMAC);
 
     if (receivedHMAC == "REHANDSHAKE") {
@@ -51,7 +47,6 @@ void Api::findRoute(ProtocolMessage& message) {
     switch (message.getType())
     {
     case MessageType::CMD:
-        this->_com->sendINFO("COMMAND RECEIVED: " + message.getData());
         this->findCommand(message);
         break;
     
@@ -63,24 +58,17 @@ void Api::findRoute(ProtocolMessage& message) {
 
 void Api::findAuth(ProtocolMessage& message) {
     String command = message.getData();
-    this->_com->sendINFO(command);
-    this->_com->sendINFO(command);
 
     if (command.startsWith("HDSHK_INIT")) {
-        this->_com->sendACK("RECEIVED HANDSHAKE INIT");
         
         // Parse the command: HANDSHAKE_INIT|hash&values
         int ampersandIndex = message.getHMAC().indexOf('&');
-        this->_com->sendINFO("Ampersand index: " + String(ampersandIndex));
         String hash;
         String authValues;
         
         if (ampersandIndex != -1) {
             hash = message.getHMAC().substring(0, ampersandIndex);
             authValues = message.getHMAC().substring(ampersandIndex + 1);
-            
-            this->_com->sendINFO("Hash: " + hash);
-            this->_com->sendINFO("Auth values: " + authValues);
             
             this->_security->setHashBuilder((String&) authValues);
             String expectedHash = this->_security->generateHMAC(true);
@@ -109,11 +97,7 @@ void Api::findAuth(ProtocolMessage& message) {
 
 
             } else {
-                this->_com->sendERR(this->_security->getSecretKey(HANDSHAKE_KEY));
-                this->_com->sendERR(SECRET_KEY);
                 this->_com->sendERR("HANDSHAKE FAILED");
-                this->_com->sendERR("EXPECTED: " + hash);
-                this->_com->sendERR("GOT: " + expectedHash);
                 return;
             }
         //HANDSHAKE_INIT|a9e5b361265f201086933f1f33923a0e&996:14:6698
@@ -124,23 +108,24 @@ void Api::findAuth(ProtocolMessage& message) {
 
 void Api::findCommand(ProtocolMessage& message){
     String command = message.getData();
-    this->_com->sendINFO("Command: " + command);
     if (command.equalsIgnoreCase("ENABLE"))
     {
-        this->_com->sendACK("RECEIVED ENABLE");
         this->_controller->ENABLE();
         return;
     }
     else if (command == "DISABLE")
     {
-        this->_com->sendACK("RECEIVED DISABLE");
         this->_controller->DISABLE();
         return;
-    } 
-    else if (command == "SOUND_DENY")
+    }
+    else if (command == "PERMIT")
     {
-        this->_com->sendACK("RECEIVED SOUND_DENY");
-        this->_controller->soundDeny();
+        this->_controller->permit();
+        return;
+    }
+    else if (command == "DENY")
+    {
+        this->_controller->deny();
         return;
     } 
 }

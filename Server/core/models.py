@@ -1,6 +1,7 @@
 from sqlmodel import SQLModel, Field
 import uuid
 from typing import Optional
+from datetime import datetime
 
 class Identifier(SQLModel, table=True):
     id: Optional[uuid.UUID] = Field(
@@ -37,4 +38,20 @@ class User(SQLModel, table=True):
     hashed_password: str
     is_active: bool = Field(default=True)
     is_admin: bool = Field(default=False)
+
+class PassRegister(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
+    rfid: str = Field(
+        index=True,
+        nullable=False,
+    )
+    date: datetime = Field(
+        default_factory=datetime.now,
+        nullable=False,
+    )
 
