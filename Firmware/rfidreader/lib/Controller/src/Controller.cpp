@@ -27,9 +27,6 @@ void Controller::alter() {
 }
 
 void Controller::readCard() {
-    this->_leds.setGreen();
-    tone(this->_buzzerPin, 800, 200);
-
     String uidStr;
     for (byte i = 0; i < this->_mfrc522.uid.size; i++) {
     if (this->_mfrc522.uid.uidByte[i] < 0x10) uidStr += "0";
@@ -50,8 +47,7 @@ void Controller::readCard() {
     }
     hashStr.toUpperCase();
     this->_com->sendOK(hashStr);
-
-    delay(1000);
+    
     this->alter();
 }
 
@@ -70,6 +66,7 @@ Controller* Controller::getInstance(int buttonPin, int buzzerPin, MFRC522 mfrc52
 void Controller::mainLoop() {
     if (digitalRead(this->_buttonPin) == LOW) {
         this->alter();
+        this->_com->sendINFO("CHANGE_STATE_" + this->getStateToString());
     }
 
     if (!this->_leds.getBlueState() && this->_security->isLogged()) {
@@ -101,7 +98,18 @@ void Controller::DISABLE() {
     this->_com->sendOK("DISABLE");
 }
 
-void Controller::soundDeny() {
-    tone(this->_buzzerPin, 300, 200);
-    this->_com->sendOK("SOUND");
+void Controller::deny() {
+    this->_leds.setRed();
+    tone(this->_buzzerPin, 300, 400);
+    this->refreshOutputs();
+}
+
+void Controller::permit() {
+    this->_leds.setGreen();
+    tone(this->_buzzerPin, 800, 400);
+    this->refreshOutputs();
+}
+
+String Controller::getStateToString() {
+    return this->_available ? "AVAILABLE" : "UNAVAILABLE";
 }

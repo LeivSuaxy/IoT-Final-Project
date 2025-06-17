@@ -7,7 +7,7 @@ from starlette.staticfiles import StaticFiles
 import shutil
 from pathlib import Path
 from core.database import engine
-from core.models import Identifier, User
+from core.models import Identifier, User, PassRegister
 from core.security import *
 import uuid
 from pydantic import BaseModel
@@ -133,6 +133,10 @@ async def identifier(rfid_id: str, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": f"Identifier with RFID {rfid_id} not found", "rfid": rfid_id}
         )
+
+    #pass_register = PassRegister(rfid=rfid_id)
+    #db.add(pass_register)
+    #db.commit()
 
     return result
 

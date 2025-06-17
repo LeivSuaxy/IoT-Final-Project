@@ -50,8 +50,6 @@ pub fn validate_received_message(auth: &str) -> bool {
 pub async fn perform_handshake(
     port: Arc<Mutex<Box<dyn SerialPort>>>,
 ) -> Result<SessionState, Box<dyn Error>> {
-    println!("Starting handshake with Firmware...");
-
     let hash_builder = HashBuilder::new();
 
     // Generate client nonce
@@ -112,9 +110,6 @@ async fn send_handshake_request(
         MessageType::AUTH,
         &format!("HDSHK_INIT|{}&{}", nonce, &hash_builder.to_string()) as &str,
     );
-    println!("{:?}", command);
-    println!("{}", command.to_string());
-    println!("{}", command.data);
 
     tokio::task::spawn_blocking(move || {
         let mut port_guard = port.lock().unwrap();
@@ -278,10 +273,8 @@ impl SessionState {
     pub fn calculate_next_hash(&mut self, increment: bool) -> String {
         let secret_key = &config::get_config().secret_key;
         let combined = generate_hash(secret_key, self.init, self.step, self.limit);
-
-        println!("{}:{}:{}", self.init, self.step, self.limit);
+        
         if increment {
-            println!("SE INCREMENTO!");
             self.init += self.step;
         }
 
@@ -293,9 +286,6 @@ impl SessionState {
     }
     
     pub fn validate_hash(&mut self, received_hash: &str) -> bool {
-        println!("{}:{}:{}", self.init, self.step, self.limit);
-        let hash = self.calculate_next_hash(false);
-        println!("Calculated hash: {}", hash);
         let expected_hash = self.calculate_next_hash(true);
         expected_hash == received_hash
     }

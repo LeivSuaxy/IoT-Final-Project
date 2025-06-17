@@ -2,8 +2,6 @@
 #include <Crypto.h>
 #include <SHA256.h>
 
-
-
 Security* Security::_instance = nullptr;
 
 Security::Security() {}
