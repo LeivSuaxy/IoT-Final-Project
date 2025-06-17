@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
                              QLabel, QLineEdit, QPushButton, QTabWidget, QWidget,
-                             QMessageBox, QProgressBar, QFrame)
+                             QMessageBox, QProgressBar, QFrame, QApplication)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QPixmap
 from core.auth_models import LoginCredentials, RegisterData, UserData
@@ -380,7 +380,7 @@ class AuthDialog(QDialog):
                               "Por favor completa todos los campos")
             return
         
-        print(f"[DEBUG] === _handle_login ===")
+        print("[DEBUG] === _handle_login ===")
         print(f"[DEBUG] username: {username}")
         
         self._set_loading_state(True)
@@ -391,7 +391,7 @@ class AuthDialog(QDialog):
         self.login_worker.error.connect(self._on_login_worker_error)
         self.login_worker.start()
         
-        print(f"[DEBUG] LoginWorker iniciado...")
+        print("[DEBUG] LoginWorker iniciado...")
     
     def _on_login_worker_error(self, error_message: str):
         """Maneja errores del LoginWorker"""
@@ -400,29 +400,90 @@ class AuthDialog(QDialog):
         QMessageBox.critical(self, "Error de Autenticación", error_message)
     
     def _handle_register(self):
-        """Maneja el proceso de registro"""
-        username = self.register_username.text().strip()
-        email = self.register_email.text().strip()
-        password = self.register_password.text()
+        """Maneja el registro de usuario con login automático"""
+        try:
+            # Verificaciones básicas
+            username = self.register_username.text().strip()
+            password = self.register_password.text()
+            email = self.register_email.text().strip()
+            
+            # Validaciones básicas
+            if not (username and password and email):
+                self.show_error("Todos los campos son obligatorios")
+                return
+            
+            if len(password) < 6:
+                self.show_error("La contraseña debe tener al menos 6 caracteres")
+                return
+            
+            # Crear datos para registro
+            from core.auth_models import RegisterData
+            register_data = RegisterData(
+                username=username,
+                password=password,
+                email=email,
+            )
+            
+            # Mostrar spinner o deshabilitar botón mientras procesa
+            self.register_btn.setText("Registrando...")
+            self.register_btn.setEnabled(False)
+            QApplication.processEvents()  # Actualizar UI
+            
+            # 🔥 USAR EL SERVICIO DE AUTENTICACIÓN CON LOGIN AUTOMÁTICO
+            success, message = self.auth_service.register(register_data)
+            
+            # Restaurar botón
+            self.register_btn.setText("Registrarse")
+            self.register_btn.setEnabled(True)
+            
+            if success:
+                # 🔥 VERIFICAR SI HAY USUARIO AUTENTICADO (LOGIN AUTOMÁTICO)
+                if self.auth_service.is_authenticated():
+                    # Login automático exitoso - cerrar diálogo
+                    self.authenticated_user = self.auth_service.current_user
+                    QMessageBox.information(
+                        self, 
+                        "Registro Exitoso", 
+                        "¡Bienvenido! Tu cuenta ha sido creada y has iniciado sesión automáticamente."
+                    )
+                    self.accept()  # Cerrar diálogo con éxito
+                else:
+                    # Registro exitoso pero sin login automático
+                    QMessageBox.information(
+                        self, 
+                        "Registro Exitoso", 
+                        "Usuario registrado correctamente.\nAhora puede iniciar sesión."
+                    )
+                    self.auth_tabs.setCurrentIndex(0)  # Cambiar a la pestaña de login
+                    
+                    # Pre-llenar el campo de usuario en login
+                    self.login_username.setText(username)
+                    self.login_password.setFocus()
+                    
+                # Limpiar campos de registro
+                self.register_username.clear()
+                self.register_password.clear()
+                self.register_email.clear()
+            else:
+                self.show_error(f"Error en registro: {message}")
+                
+        except Exception as e:
+            self.register_btn.setText("Registrarse")
+            self.register_btn.setEnabled(True)
+            self.show_error(f"Error inesperado: {str(e)}")
+            print(f"[ERROR] Excepción en registro: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def get_authenticated_user(self):
+        """Obtiene el usuario autenticado"""
+        if self.authenticated_user:
+            return self.authenticated_user
+        elif hasattr(self, 'auth_service') and self.auth_service.is_authenticated():
+            return self.auth_service.current_user
+        else:
+            return None
         
-        if not username or not email or not password:
-            QMessageBox.warning(self, "Campos Requeridos", 
-                              "Por favor completa todos los campos")
-            return
-        
-        if len(password) < 6:
-            QMessageBox.warning(self, "Contraseña Débil", 
-                              "La contraseña debe tener al menos 6 caracteres")
-            return
-        
-        self._set_loading_state(True)
-        register_data = RegisterData(username=username, email=email, password=password)
-        success, message = self.auth_service.register(register_data)
-        
-        if not success:
-            self._set_loading_state(False)
-            QMessageBox.critical(self, "Error de Registro", message)
-    
     def _set_loading_state(self, loading: bool):
         """Configura el estado de carga"""
         self.login_btn.setEnabled(not loading)
@@ -441,10 +502,10 @@ class AuthDialog(QDialog):
         
         # Ahora response_data siempre debería ser UserData
         if isinstance(response_data, UserData):
-            print(f"[DEBUG] ✅ UserData recibido correctamente")
+            print("[DEBUG] ✅ UserData recibido correctamente")
             self.authenticated_user = response_data
             
-            print(f"[DEBUG] ✅ UserData final:")
+            print("[DEBUG] ✅ UserData final:")
             print(f"[DEBUG] - username: {self.authenticated_user.username}")
             print(f"[DEBUG] - is_admin: {self.authenticated_user.is_admin}")
             print(f"[DEBUG] - token presente: {bool(self.authenticated_user.token)}")

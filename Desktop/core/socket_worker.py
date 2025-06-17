@@ -227,7 +227,7 @@ class SocketWorker(QThread):
         data = parsed_data.get('data', '')
         
         # 🔥 VERIFICAR COMANDOS CORRECTOS
-        if data in ['ENABLE', 'DISABLE', 'RESET', 'STATUS', 'PING']:
+        if data in ['ENABLE', 'DISABLE', 'RESET', 'STATUS', 'PING', 'PERMIT', 'DENY']:
             print(f"[DEBUG] ✅ Arduino confirmó comando: {data}")
             
             # Emitir señal específica para comandos Arduino
@@ -400,6 +400,8 @@ class SocketWorker(QThread):
                 'RESET',         # Reset del Arduino
                 'STATUS',        # Solicitar estado
                 'PING'           # Ping de conectividad
+                'PERMIT',        # Permitir acceso
+                'DENY',          # Denegar acceso
             ]
             
             if command not in valid_commands:

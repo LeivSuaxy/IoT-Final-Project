@@ -1,7 +1,7 @@
 """Manejador de datos RFID"""
 
 from datetime import datetime
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Union
 
 class RFIDDataHandler:
     """Maneja el procesamiento y formato de datos RFID"""
@@ -9,19 +9,19 @@ class RFIDDataHandler:
     def __init__(self):
         self.last_scan_time = None
         self.duplicate_threshold = 2  # segundos para considerar duplicado
-        print(f"[DEBUG] RFIDDataHandler inicializado - VERSIÓN NUEVA")  # Para verificar que se ejecuta
+        print("[DEBUG] RFIDDataHandler inicializado - VERSIÓN NUEVA")  # Para verificar que se ejecuta
     
     def process_rfid_data(self, raw_data: Union[Dict[str, Any], str]) -> Dict[str, Any]:
         """
         Procesa datos RFID crudos y retorna datos estructurados
         """
-        print(f"[DEBUG] === RFIDDataHandler.process_rfid_data() VERSIÓN NUEVA ===")
+        print("[DEBUG] === RFIDDataHandler.process_rfid_data() VERSIÓN NUEVA ===")
         print(f"[DEBUG] raw_data tipo: {type(raw_data)}")
         print(f"[DEBUG] raw_data contenido: {raw_data}")
         
         # FORZAR QUE SIEMPRE MANTENGA EL TIPO PARA DEBUG
         if isinstance(raw_data, dict) and raw_data.get('type') == 'rfid_scan':
-            print(f"[DEBUG] 🚨 DETECTADO ESCANEO RFID - PROCESANDO DIRECTAMENTE")
+            print("[DEBUG] 🚨 DETECTADO ESCANEO RFID - PROCESANDO DIRECTAMENTE")
             
             current_time = datetime.now()
             
@@ -41,7 +41,7 @@ class RFIDDataHandler:
         
         # Verificar tipo de datos de entrada
         if isinstance(raw_data, str):
-            print(f"[DEBUG] Datos tipo string recibidos, convirtiendo a dict")
+            print("[DEBUG] Datos tipo string recibidos, convirtiendo a dict")
             raw_data = {
                 'type': 'raw_string',
                 'message': raw_data,
@@ -49,7 +49,7 @@ class RFIDDataHandler:
             }
         
         if not isinstance(raw_data, dict):
-            print(f"[DEBUG] Tipo inesperado, convirtiendo a dict genérico")
+            print("[DEBUG] Tipo inesperado, convirtiendo a dict genérico")
             raw_data = {
                 'type': 'unknown',
                 'message': str(raw_data),
@@ -69,16 +69,16 @@ class RFIDDataHandler:
         print(f"[DEBUG] Tipo de datos determinado: {data_type}")
         
         if data_type == 'rfid_scan':
-            print(f"[DEBUG] Procesando como rfid_scan")
+            print("[DEBUG] Procesando como rfid_scan")
             result = self._process_rfid_scan(raw_data, current_time)
         elif data_type in ['info', 'confirmation', 'acknowledgment', 'authentication']:
-            print(f"[DEBUG] Procesando como mensaje del sistema")
+            print("[DEBUG] Procesando como mensaje del sistema")
             result = self._process_system_message(raw_data, current_time)
         elif data_type == 'raw_string':
-            print(f"[DEBUG] Procesando como string crudo")
+            print("[DEBUG] Procesando como string crudo")
             result = self._process_raw_string(raw_data, current_time)
         else:
-            print(f"[DEBUG] Procesando como mensaje genérico")
+            print("[DEBUG] Procesando como mensaje genérico")
             result = self._process_generic_message(raw_data, current_time)
         
         print(f"[DEBUG] Resultado final: {result}")
@@ -87,7 +87,7 @@ class RFIDDataHandler:
     
     def _process_rfid_scan(self, data: Dict[str, Any], scan_time: datetime) -> Dict[str, Any]:
         """Procesa un escaneo RFID específico"""
-        print(f"[DEBUG] === _process_rfid_scan VERSIÓN NUEVA ===")
+        print("[DEBUG] === _process_rfid_scan VERSIÓN NUEVA ===")
         print(f"[DEBUG] data recibida: {data}")
         
         card_id = data.get('card_id', 'Unknown')
@@ -151,7 +151,7 @@ class RFIDDataHandler:
     
     def _process_generic_message(self, data: Dict[str, Any], scan_time: datetime) -> Dict[str, Any]:
         """Procesa mensajes genéricos"""
-        print(f"[DEBUG] === _process_generic_message ===")
+        print("[DEBUG] === _process_generic_message ===")
         print(f"[DEBUG] data: {data}")
         
         # Intentar extraer información útil del diccionario

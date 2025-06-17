@@ -88,7 +88,7 @@ class AuthService(QObject):
     
     def register(self, register_data: RegisterData) -> Tuple[bool, str]:
         """
-        Realiza registro síncrono
+        Realiza registro síncrono y login automático si es exitoso
         Returns: (success: bool, message: str)
         """
         try:
@@ -107,12 +107,38 @@ class AuthService(QObject):
             
             if response.status_code == 200:
                 user_response = response.json()
-                user_data = UserData(
-                    username=user_response['username'],
-                    is_admin=user_response['is_admin']
+                
+                # 🔥 REALIZAR LOGIN AUTOMÁTICO DESPUÉS DEL REGISTRO EXITOSO
+                print("[DEBUG] Registro exitoso, realizando login automático...")
+                
+                # Crear credenciales para el login
+                from .auth_models import LoginCredentials
+                login_credentials = LoginCredentials(
+                    username=register_data.username,
+                    password=register_data.password
                 )
-                self.register_success.emit(user_data)
-                return True, "Registro exitoso"
+                
+                # Intentar login automático
+                login_success, login_message = self.login(login_credentials)
+                
+                if login_success:
+                    # Login automático exitoso
+                    print("[DEBUG] ✅ Login automático exitoso")
+                    return True, "Registro exitoso - Sesión iniciada automáticamente"
+                else:
+                    # Registro exitoso pero login falló
+                    print(f"[WARNING] Registro exitoso pero login automático falló: {login_message}")
+                    
+                    # Crear user_data básico para el registro
+                    user_data = UserData(
+                        username=user_response.get('username', register_data.username),
+                        is_admin=user_response.get('is_admin', False),
+                        email=register_data.email,
+                        is_active=True
+                    )
+                    self.register_success.emit(user_data)
+                    
+                    return True, f"Registro exitoso. Login manual requerido: {login_message}"
             else:
                 error_detail = response.json().get('detail', 'Error en el registro')
                 self.register_error.emit(error_detail)
@@ -126,6 +152,29 @@ class AuthService(QObject):
             error_msg = f"Error inesperado: {str(e)}"
             self.register_error.emit(error_msg)
             return False, error_msg
+
+    def auto_login_after_register(self, register_data: RegisterData) -> Tuple[bool, str, Optional[UserData]]:
+        """
+        Método alternativo que devuelve también los datos del usuario
+        Returns: (success: bool, message: str, user_data: Optional[UserData])
+        """
+        try:
+            # Primero hacer el registro
+            success, message = self.register(register_data)
+            
+            if success and self.current_user:
+                # El login automático ya se hizo en register()
+                return True, message, self.current_user
+            elif success:
+                # Registro exitoso pero sin login automático
+                return True, message, None
+            else:
+                # Error en registro
+                return False, message, None
+                
+        except Exception as e:
+            error_msg = f"Error en registro/login automático: {str(e)}"
+            return False, error_msg, None
     
     def logout(self):
         """Cierra sesión"""

@@ -221,14 +221,20 @@ class BaseInterface(QMainWindow):
         """Cuando se encuentra la tarjeta en BD"""
         print(f"[DEBUG] Tarjeta encontrada en BD: {db_data}")
         
-        # 🔥 COMBINAR DATOS INCLUYENDO DB_DATA COMPLETO
+        # Determinar si el acceso está permitido
+        access_granted = db_data.get('access', False)
+        
+        # 🔥 ENVIAR COMANDO AL ARDUINO SEGÚN EL RESULTADO
+        self._send_access_command(access_granted, db_data.get('name', 'Usuario'))
+        
+        # Combinar datos incluyendo DB_DATA completo
         combined_data = {
             **rfid_data,
             'name': db_data.get('name', 'Usuario'),
-            'info': f"Acceso: {'✅ Permitido' if db_data.get('access') else '❌ Denegado'}",
+            'info': f"Acceso: {'✅ Permitido' if access_granted else '❌ Denegado'}",
             'auth_verified': True,
-            'access_granted': db_data.get('access', False),
-            'db_data': db_data  # 🔥 INCLUIR DATOS COMPLETOS DE BD PARA IMAGEN
+            'access_granted': access_granted,
+            'db_data': db_data  # Incluir datos completos de BD para imagen
         }
         
         print(f"[DEBUG] Datos combinados con imagen: {combined_data}")
@@ -236,13 +242,46 @@ class BaseInterface(QMainWindow):
     
     def _on_identifier_not_found(self, rfid_id: str, rfid_data: dict):
         """Cuando no se encuentra la tarjeta"""
+        print(f"[DEBUG] Tarjeta NO encontrada en BD: {rfid_id}")
+        
+        # 🔥 ENVIAR COMANDO DE DENY PARA TARJETAS NO REGISTRADAS
+        self._send_access_command(False, f"Tarjeta {rfid_id[-8:]}")
+        
+        # Crear datos para mostrar
+        not_found_data = {
+            **rfid_data,
+            'name': f'Tarjeta {rfid_id[-8:]}',
+            'info': '⚠️ No registrada en el sistema',
+            'auth_verified': False,
+            'access_granted': False
+        }
+        
+        # Mostrar información de tarjeta no encontrada
+        self._display_rfid_data(not_found_data)
+        
+        # Mostrar diálogos según el tipo de usuario
         if self.user_data and self.user_data.is_admin:
             self._show_register_dialog(rfid_id)
         else:
             self._show_contact_admin_dialog(rfid_id)
-    
+
     def _on_identifier_error(self, error: str, rfid_data: dict):
         """Error al consultar BD"""
+        print(f"[DEBUG] Error consultando BD: {error}")
+        
+        # 🔥 ENVIAR COMANDO DE DENY EN CASO DE ERROR
+        self._send_access_command(False, "Error BD")
+        
+        # Crear datos de error
+        error_data = {
+            **rfid_data,
+            'name': 'Error del Sistema',
+            'info': f'Error consultando BD: {error}',
+            'auth_verified': False,
+            'access_granted': False
+        }
+        
+        self._display_rfid_data(error_data)
         QMessageBox.warning(self, "Error", f"Error consultando BD: {error}")
     
     def _show_register_dialog(self, rfid_id: str):

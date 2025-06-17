@@ -1,7 +1,7 @@
 """Manejador de datos RFID"""
 
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 class RFIDDataHandler:
     """Maneja el procesamiento y formato de datos RFID"""
@@ -64,7 +64,7 @@ class RFIDDataHandler:
         return {
             'card_id': 'SYSTEM',
             'card_hash': '',
-            'name': f'Mensaje del Sistema',
+            'name': 'Mensaje del Sistema',
             'info': f'{message_type.upper()}: {message}',
             'timestamp': scan_time.strftime("%Y-%m-%d %H:%M:%S"),
             'message_type': data.get('message_type', 'INFO'),
