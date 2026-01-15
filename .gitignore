@@ -21,3 +21,4 @@ Middleware/target
 __pycache__
 # Python virtual environment
 venv
+.venv
